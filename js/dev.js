@@ -19,8 +19,10 @@ const DEV = {allowed:false, god:false, mana:false, oneHit:false, fly:false, flyS
 
 function saveDev() { try { const {allowed, ...rest} = DEV; localStorage.setItem('dragonhold_dev', JSON.stringify(rest)); } catch (e) {} }
 
-// ---- game hooks (wrap existing functions; only installed for the owner) ----
-function installDevHooks() {
+// ---- power hooks: installed for EVERY player, so the owner can give friends powers in co-op ----
+// They do nothing until a DEV flag is switched on (by the owner's own panel, or by a gift from the owner).
+// Friends' flags always start off and are never saved.
+function installPowerHooks() {
   const origHurt = hurtPlayer;
   hurtPlayer = function (amt, srcX, opt) { if (DEV.god) return; return origHurt(amt, srcX, opt); };
   const origWD = weaponDamage;
@@ -47,6 +49,13 @@ function installDevHooks() {
   const origNT = nearestTarget;
   const nobody = {x:-1e7, y:-1e7, w:1, h:1, dead:true}; // a far-away, "dead" stand-in so enemies stay calm
   nearestTarget = function (x, y) { if (DEV.noAggro && !NET.on) return nobody; return origNT(x, y); };
+  // W/S and the arrow keys steer while flying
+  window.addEventListener('keydown', e => { devKeys[e.code] = true; });
+  window.addEventListener('keyup', e => { devKeys[e.code] = false; });
+}
+
+// ---- owner-only tools (installed once /dev-allowed says yes) ----
+function installDevHooks() {
   // info overlay
   setInterval(() => {
     const el = document.getElementById('devInfo'); if (!el) return;
@@ -65,12 +74,10 @@ function installDevHooks() {
     const ty = clamp(Math.floor((ev.clientY - r.top) / r.height * WH), 1, WH - 5);
     devTeleport(tx, ty); closePanels();
   });
-  // F2 opens the panel; track S/Down for flying down
+  // F2 opens the panel
   window.addEventListener('keydown', e => {
-    devKeys[e.code] = true;
     if (e.code === 'F2' && mode === 'play') { e.preventDefault(); toggleDevPanel(); }
   });
-  window.addEventListener('keyup', e => { devKeys[e.code] = false; });
 }
 let devFps = 0;
 const devKeys = {};
@@ -138,6 +145,16 @@ function buildDevPanel() {
     </div>
     <div class="dsec"><b>World</b>
       <div class="row"><button class="btn" id="dvDay">Make it day</button> <button class="btn" id="dvNight">Make it night</button> <button class="btn" id="dvSave">Save now</button></div>
+    </div>
+    <div class="dsec" id="dvFriends" hidden><b>Friends (co-op)</b>
+      <div class="row">Give to <select id="dvFriend"></select></div>
+      <div class="row"><button class="btn" id="dvFGive">Give item to friend</button> <span style="color:var(--muted)">(uses the item picked above)</span></div>
+      <div class="row"><button class="btn" id="dvFGold">+10,000 gold</button> <button class="btn" id="dvFLevel">Set their level</button> <button class="btn" id="dvFMax">Max level</button></div>
+      <div class="row"><button class="btn" id="dvFHeal">Heal / revive</button> <button class="btn" id="dvFBring">Bring to me</button></div>
+      <label class="tog"><input type="checkbox" data-power="god"> God mode</label>
+      <label class="tog"><input type="checkbox" data-power="mana"> Infinite mana</label>
+      <label class="tog"><input type="checkbox" data-power="oneHit"> One-hit kills</label>
+      <label class="tog"><input type="checkbox" data-power="fly"> Fly through walls</label>
     </div>`;
   document.body.appendChild(el);
   const $d = id => document.getElementById(id);
@@ -186,6 +203,34 @@ function buildDevPanel() {
   $d('dvDay').onclick = () => { if (!host()) return toast('Only the host can change the time.'); G.dayT = 0.25; };
   $d('dvNight').onclick = () => { if (!host()) return toast('Only the host can change the time.'); G.dayT = 0.8; };
   $d('dvSave').onclick = () => saveGame(false);
+  // ---- Friends (co-op): give items, gold, levels and powers to the other players ----
+  const target = () => $d('dvFriend').value; // 'others' or a player id
+  const targetName = () => { const s = $d('dvFriend'); return s.options[s.selectedIndex] ? s.options[s.selectedIndex].textContent : 'your friend'; };
+  const gift = (o, msg) => {
+    if (!NET.on || !NET.peers.size) { toast('No friends are in your game right now.'); return; }
+    const to = target();
+    netSend(to === 'others' ? 'others' : +to, Object.assign({k:'devgift'}, o));
+    toast(`${msg} → ${targetName()}`, 'blue');
+  };
+  $d('dvFGive').onclick = () => {
+    const id = $d('dvItem').value, n = clamp(+$d('dvItemN').value || 1, 1, 999), rare = $d('dvRare').checked;
+    gift({op:'item', id, n, rare}, `Gave ${n} ${ITEMS[id].name}${rare ? ' (rare)' : ''}`);
+  };
+  $d('dvFGold').onclick = () => gift({op:'gold', n:10000}, 'Gave 10,000 gold');
+  $d('dvFLevel').onclick = () => { const n = clamp(Math.round(+$d('dvLevel').value) || 1, 1, 60); gift({op:'level', n}, `Set level ${n}`); };
+  $d('dvFMax').onclick = () => gift({op:'level', n:60}, 'Set level 60');
+  $d('dvFHeal').onclick = () => gift({op:'heal'}, 'Healed');
+  $d('dvFBring').onclick = () => gift({op:'tp', x:Math.round(player.x), y:Math.round(player.y)}, 'Brought to you');
+  for (const box of el.querySelectorAll('[data-power]')) {
+    box.onchange = () => {
+      const key = box.dataset.power, to = target();
+      const ids = to === 'others' ? [...NET.peers.keys()] : [+to];
+      for (const id of ids) (devFriendPowers[id] = devFriendPowers[id] || {})[key] = box.checked;
+      gift({op:'power', key, on:box.checked}, `${box.parentElement.textContent.trim()} ${box.checked ? 'on' : 'off'}`);
+    };
+  }
+  $d('dvFriend').onchange = showFriendPowers;
+  setInterval(() => { if (!el.hidden) refreshFriends(); }, 2000);
   // pause-menu entry
   const pb = document.querySelector('#pausePanel .pause-btns');
   if (pb) { const b = document.createElement('button'); b.className = 'btn'; b.id = 'btnDev'; b.textContent = 'Developer options (F2)'; b.onclick = () => { closePanels(); toggleDevPanel(); }; pb.appendChild(b); }
@@ -194,7 +239,90 @@ function toggleDevPanel() {
   const el = document.getElementById('devPanel'); if (!el) return;
   el.hidden = !el.hidden;
   if (!el.hidden && player) document.getElementById('dvLevel').value = player.level;
+  if (!el.hidden) refreshFriends();
 }
+// the powers the owner last gave each friend (by player id), so the boxes show them
+const devFriendPowers = {};
+// the Friends section only shows in co-op; its list is "All friends" plus everyone in the game
+function refreshFriends() {
+  const sec = document.getElementById('dvFriends'), sel = document.getElementById('dvFriend');
+  if (!sec || !sel) return;
+  sec.hidden = !(NET.on && NET.peers.size);
+  if (sec.hidden) return;
+  const want = [['others', 'All friends'], ...[...NET.peers.values()].map(p => [String(p.id), p.name || 'Friend'])];
+  const have = [...sel.options].map(o => o.value + '|' + o.textContent).join(',');
+  if (have !== want.map(w => w.join('|')).join(',')) {
+    const keep = sel.value;
+    sel.innerHTML = want.map(([v, n]) => `<option value="${v}">${n.replace(/[<>&]/g, '')}</option>`).join('');
+    if (want.some(w => w[0] === keep)) sel.value = keep;
+    showFriendPowers();
+  }
+}
+function showFriendPowers() {
+  const to = document.getElementById('dvFriend').value;
+  const ids = to === 'others' ? [...NET.peers.keys()] : [+to];
+  for (const box of document.querySelectorAll('#dvFriends [data-power]')) box.checked = ids.length > 0 && ids.every(id => devFriendPowers[id] && devFriendPowers[id][box.dataset.power]);
+}
+
+// ===== Receiving gifts from the owner (every player) =====
+// Only called for messages the server stamped as coming from the game's owner (see net.js).
+const GIFT_POWERS = {god:'God mode', mana:'Infinite mana', oneHit:'One-hit kills', fly:'Fly'};
+function applyDevGift(d) {
+  if (mode !== 'play' || !player || !d) return;
+  const p = player, from = 'The game owner';
+  switch (d.op) {
+    case 'item': {
+      const it = ITEMS[d.id]; if (!it) return;
+      const n = clamp(Math.floor(+d.n) || 1, 1, 999), rare = !!d.rare && it.kind === 'weapon';
+      if (it.stack === 1) { for (let i = 0; i < Math.min(n, 40); i++) addItem(it.id, 1, rare, true); } else addItem(it.id, n, rare, true);
+      refreshSlots();
+      toast(`🎁 ${from} gave you ${n > 1 ? n + ' ' : ''}${rare ? 'a RARE ' : ''}${it.name}!`, 'gold');
+      break;
+    }
+    case 'gold': {
+      const n = clamp(Math.floor(+d.n) || 0, 0, 1e7);
+      p.coins += n; updateHUD(true);
+      toast(`🎁 ${from} gave you ${n.toLocaleString()} gold!`, 'gold');
+      break;
+    }
+    case 'level': devSetLevel(clamp(Math.floor(+d.n) || 1, 1, 60)); toast(`🎁 ${from} set your level.`, 'gold'); break;
+    case 'heal':
+      if (p.dead) { p.dead = false; p.iframes = 2; p.vx = p.vy = 0; hideDeath(); }
+      p.hp = p.maxHp; p.mana = p.maxMana; updateHUD(true);
+      addParticles(ecx(p), ecy(p), '#6dff8a', 24, 120, 0.7, -60);
+      toast(`🎁 ${from} healed you!`, 'gold');
+      break;
+    case 'power': {
+      if (!Object.prototype.hasOwnProperty.call(GIFT_POWERS, d.key)) return;
+      DEV[d.key] = !!d.on;
+      toast(`🎁 ${from} ${d.on ? 'gave you' : 'took away'} ${GIFT_POWERS[d.key]}.`, d.on ? 'gold' : 'blue');
+      updatePowerBadge();
+      break;
+    }
+    case 'tp': {
+      const x = +d.x, y = +d.y;
+      if (!isFinite(x) || !isFinite(y)) return;
+      placeAt(clamp(x, 0, (WW - 1) * TILE), clamp(y, 0, (WH - 4) * TILE));
+      addParticles(ecx(p), ecy(p), '#8fd0ff', 24, 150, 0.6);
+      toast(`🎁 ${from} brought you to them.`, 'blue');
+      break;
+    }
+  }
+}
+// a small badge for friends showing the powers the owner gave them
+function updatePowerBadge() {
+  if (DEV.allowed) return; // the owner has the full panel instead
+  let b = document.getElementById('powerBadge');
+  if (!b) {
+    b = document.createElement('div'); b.id = 'powerBadge';
+    b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:calc(8px + env(safe-area-inset-top,0px));z-index:65;background:rgba(14,12,20,0.9);border:1px solid #6cf0b0;color:#6cf0b0;border-radius:6px;padding:4px 10px;font:12px var(--body);pointer-events:none';
+    document.body.appendChild(b);
+  }
+  const on = Object.keys(GIFT_POWERS).filter(k => DEV[k]).map(k => GIFT_POWERS[k]);
+  b.hidden = !on.length;
+  b.textContent = '✨ Powers from the owner: ' + on.join(' · ');
+}
+installPowerHooks();
 function devSetLevel(n) {
   const p = player; n = clamp(Math.round(n) || 1, 1, 60);
   p.level = n; p.xp = 0; recalcStats(); p.hp = p.maxHp; p.mana = p.maxMana; updateHUD(true);

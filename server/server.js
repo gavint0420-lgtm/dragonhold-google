@@ -35,6 +35,17 @@ function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Headers', '*');
 }
 
+// The owner: someone using this very computer (the connection really comes from this machine, not
+// through the internet tunnel, Wi-Fi or a proxy), on a computer that has the private server/dev.key.
+function isOwnerRequest(req) {
+  const viaTunnel = !!(req.headers['cf-connecting-ip'] || req.headers['cf-ray'] || req.headers['x-forwarded-for'] || req.headers['forwarded']);
+  const host = String(req.headers.host || '').split(':')[0];
+  const localName = ['localhost', '127.0.0.1', '[::1]'].includes(host);
+  const ip = String((req.socket && req.socket.remoteAddress) || '');
+  const localIp = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+  return !viaTunnel && localName && localIp && fs.existsSync(path.join(__dirname, 'dev.key'));
+}
+
 // ---------- static HTTP request handler ----------
 function handleHttp(req, res, rootDir = ROOT) {
   setCorsHeaders(res);
@@ -50,10 +61,7 @@ function handleHttp(req, res, rootDir = ROOT) {
     return;
   }
   if (url === '/dev-allowed') {
-    const viaTunnel = !!(req.headers['cf-connecting-ip'] || req.headers['cf-ray'] || req.headers['x-forwarded-for']);
-    const host = String(req.headers.host || '').split(':')[0];
-    const local = ['localhost', '127.0.0.1', '[::1]'].includes(host);
-    const ok = !viaTunnel && local && fs.existsSync(path.join(__dirname, 'dev.key'));
+    const ok = isOwnerRequest(req);
     res.writeHead(ok ? 200 : 403, {'Content-Type': 'text/plain', 'Cache-Control': 'no-store'});
     res.end(ok ? 'yes' : 'no');
     return;
@@ -175,7 +183,8 @@ function handle(client, msg) {
   if (!room) return;
   if (msg.t === 'relay') {
     // to: 'host' | 'all' | 'others' | <id>
-    const out = JSON.stringify({t: 'msg', from: client.id, d: msg.d});
+    // `own` is added here by the server, never taken from the sender, so nobody can fake it
+    const out = JSON.stringify(client.owner ? {t: 'msg', from: client.id, own: 1, d: msg.d} : {t: 'msg', from: client.id, d: msg.d});
     const buf = Buffer.from(out);
     const to = msg.to;
     for (const c of [...room.members.values()]) {
@@ -248,7 +257,9 @@ function attachWebSocket(httpServer, {shared = false} = {}) {
       try { socket.destroy(); } catch (_) {}
       return;
     }
-    const client = {socket, id: 0, room: null, name: '', buf: Buffer.alloc(0), frags: [], alive: true};
+    // owner: the game's owner playing on this computer. Their relayed messages are stamped so friends'
+    // games can trust developer gifts from them (and only from them).
+    const client = {socket, id: 0, room: null, name: '', buf: Buffer.alloc(0), frags: [], alive: true, owner: isOwnerRequest(req)};
     if (head && head.length) onData(client, head);
     socket.on('data', chunk => onData(client, chunk));
     socket.on('close', () => leave(client));

@@ -111,7 +111,12 @@ function netHandle(m) {
       saveCoopChar(true);
       netLeave(); quitToTitle();
       break;
-    case 'msg': onPeerMsg(m.from, m.d); break;
+    case 'msg':
+      // developer gifts are only accepted when the SERVER marked the sender as the game's owner (m.own);
+      // a 'devgift' without that mark is ignored (onPeerMsg has no case for it)
+      if (m.own && m.d && m.d.k === 'devgift') { if (typeof applyDevGift === 'function') applyDevGift(m.d); break; }
+      onPeerMsg(m.from, m.d);
+      break;
   }
 }
 function ensurePeer(id, name) {

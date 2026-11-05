@@ -110,7 +110,20 @@ Two AI agents work on this project through its GitHub repository. Follow `AGENTS
 
 ## Developer options (owner only)
 
-`dev.js` unlocks only when the page is opened at `localhost` and `GET /dev-allowed` returns `yes`. The server says yes only if `server/dev.key` exists, the Host header is localhost, and no Cloudflare or proxy headers are present. The key file is never served and is left out of the download zip. **Never send the key anywhere or commit it.** The panel has F2 cheats, item giving, teleport (including clicking the map), boss and enemy spawning, and day/night.
+`dev.js` unlocks only when the page is opened at `localhost` and `GET /dev-allowed` returns `yes`. The server's `isOwnerRequest(req)` says yes only if all of these hold:
+- `server/dev.key` exists.
+- The Host header is localhost.
+- The connection really comes from this computer (loopback address).
+- No Cloudflare or proxy headers are present.
+
+The key file is never served and is left out of the download zip. **Never send the key anywhere or commit it.** The panel has F2 cheats, item giving, teleport (including clicking the map), boss and enemy spawning, and day/night.
+
+**Giving friends items and powers (co-op):**
+- **Panel:** its "Friends (co-op)" section sends `{k:'devgift', op, ...}` messages.
+- **Server stamp:** the server marks relayed messages from an owner connection with `own:1`. It decides this itself and never trusts the sender.
+- **Receiving:** `net.js` passes a devgift to `applyDevGift` only when `own` is set. Anything else is ignored.
+- **Ops:** item, gold, level, heal (also revives), power (god, mana, oneHit, fly) and tp (bring to the owner).
+- **Powers:** `installPowerHooks()` runs for every player so gifted powers work. Friends' `DEV` flags start off and are never saved. The owner-only tools are in `installDevHooks()`.
 
 ## How we test
 
