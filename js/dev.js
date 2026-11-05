@@ -106,7 +106,7 @@ function buildDevPanel() {
   el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Developer options');
   const itemOpts = Object.values(ITEMS).sort((a, b) => a.name.localeCompare(b.name)).map(it => `<option value="${it.id}">${it.name}</option>`).join('');
   const enemyOpts = Object.keys(EN).map(k => `<option value="${k}">${EN[k].name}</option>`).join('');
-  const bossOpts = BOSS_ORDER.map(k => `<option value="${k}">${BOSSES[k].name.split(',')[0]}</option>`).join('');
+  const bossOpts = [...BOSS_ORDER, ...SUMMON_BOSSES].map(k => `<option value="${k}">${BOSSES[k].name.split(',')[0]}</option>`).join('');
   const placeOpts = [['village', 'Greenhollow (start)'], ...TOWNS.map(t => ['town:' + t.x, t.name]), ...BOSS_ORDER.map(k => ['boss:' + k, ARENA_NAMES[k]])]
     .map(([v, n]) => `<option value="${v}">${n}</option>`).join('');
   el.innerHTML = `
@@ -166,6 +166,7 @@ function buildDevPanel() {
     const k = $d('dvBoss').value;
     if (G.boss) despawnBoss(false);
     G.bossesDone[k] = false;
+    if (BOSSES[k].summoned) { summonBoss(k); return; } // item bosses appear right here
     if (k === 'gold_dragon') devTeleport(CASTLE.x0 + 30, CASTLE.floor - 2); else devTeleport(BOSSES[k].x - 12);
     summonBoss(k);
   };

@@ -722,7 +722,7 @@ function drawEnemy(g, e, time) {
     if (k < split) { const w = Math.sin(k / split * Math.PI / 2); g.translate(-2.5 * w, 0); g.rotate(-0.2 * w); g.scale(1 + 0.06 * w, 1 - 0.06 * w); }
     else { const s = Math.sin((k - split) / (1 - split) * Math.PI); g.translate(6 * s, 0); g.rotate(0.26 * s); g.scale(1 - 0.04 * s, 1 + 0.05 * s); }
   }
-  if (e.castT > 0) { const k = 1 - e.castT / CAST_TIME; g.translate(0, -1.5 * Math.sin(k * Math.PI)); g.scale(1, 1 + 0.05 * Math.sin(k * Math.PI)); }
+  if (e.castT > 0) { const k = clamp(1 - e.castT / CAST_TIME, 0, 1); g.translate(0, -1.5 * Math.sin(k * Math.PI)); g.scale(1, 1 + 0.05 * Math.sin(k * Math.PI)); }
   if (e.sc !== 1) g.scale(e.sc, e.sc);
   g.shadowColor = 'rgba(12,8,6,0.85)'; g.shadowBlur = 2.5 * (typeof ZS !== 'undefined' ? ZS / 2 : 1);
   if (e.flash > 0) g.filter = 'brightness(3)';
@@ -736,8 +736,9 @@ function drawEnemy(g, e, time) {
   g.restore();
   // spell charging glow at the caster's hand, plus a spinning rune circle under the caster's feet
   if (e.castT > 0) {
-    const k = 1 - e.castT / CAST_TIME, hx = cx + e.facing * e.w * 0.55, hy = e.y + e.h * 0.3;
-    const col = e.type === 'drake' ? '255,140,40' : e.type === 'lich' ? '155,227,107' : '190,100,255';
+    // (long casts, like the Necromancer's, can last longer than CAST_TIME, so k is kept between 0 and 1)
+    const k = clamp(1 - e.castT / CAST_TIME, 0, 1), hx = cx + e.facing * e.w * 0.55, hy = e.y + e.h * 0.3;
+    const col = e.type === 'drake' ? '255,140,40' : (e.type === 'lich' || e.type === 'necromancer') ? '155,227,107' : '190,100,255';
     if (e.ai !== 'flyer') {
       const R = e.w * 0.9 + 4, fy = e.y + e.h + (e.visOff || 0), spin = time * 3;
       g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = `rgba(${col},${0.7 * k})`; g.lineWidth = 1;
@@ -1243,6 +1244,160 @@ SPRITES.magma_wyrm = function (g, t, mv, e) {
   g.beginPath(); g.moveTo(-4, -12); g.lineTo(2, -12.5); g.stroke();
   g.restore();
 };
+// ===== Mortivar, the Rotting Necromancer =====
+// A floating, decaying sorcerer: a rotting tattered robe that trails into smoke instead of legs, an open
+// chest showing ribs, a half-skull face with one burning eye and one empty socket, stringy hair, a chain
+// belt of little skulls, a gnarled bone staff crowned with a horned skull and green flame, dripping
+// ichor, buzzing flies and souls circling him.
+SPRITES.necromancer = function (g, t, mv, e) {
+  const cast = e && e.castT > 0, bob = Math.sin(t * 2) * 1.2;
+  const robeD = '#1c1a16', robeM = '#2c2a22', robeL = '#403c2e', rot = '#4f6028', bone = '#ddd5bd', boneD = '#b8ae92', flesh = '#7a8466', fleshD = '#5a6448';
+  g.translate(0, bob - 3);
+  // sickly aura
+  g.save(); g.globalCompositeOperation = 'lighter';
+  const pulse = 0.2 + Math.sin(t * 3) * 0.07 + (cast ? 0.12 : 0);
+  g.globalAlpha = pulse; circ(g, 0, -17, 19, '#2f5a1e'); g.globalAlpha = pulse * 0.8; circ(g, 0, -17, 12, '#5a9a3a');
+  g.restore();
+  // ragged robe tail: strips swaying in a ghostly wind, fading into smoke
+  for (let i = -4; i <= 4; i++) {
+    const sw = Math.sin(t * 3 + i * 1.3) * 1.3, len = 8 + (Math.abs(i * 7) % 4);
+    g.fillStyle = i % 2 ? robeD : robeM;
+    g.beginPath(); g.moveTo(i * 1.6 - 1.1, -10); g.lineTo(i * 1.6 + 1.1, -10); g.lineTo(i * 1.75 + sw, -10 + len); g.closePath(); g.fill();
+  }
+  g.globalAlpha = 0.35;
+  for (let i = 0; i < 4; i++) { const k = (t * 0.9 + i * 0.25) % 1; circ(g, -4 + i * 2.6 + Math.sin(t * 2 + i) * 1.5, k * 8, 1.2 + k * 1.8, '#3e4a32'); }
+  g.globalAlpha = 1;
+  // the robe: dark, stained, torn
+  const lg = g.createLinearGradient(0, -24, 0, -9);
+  lg.addColorStop(0, robeL); lg.addColorStop(1, robeD);
+  g.fillStyle = lg; g.beginPath(); g.moveTo(-4.6, -24); g.lineTo(4.6, -24); g.lineTo(7.2, -9); g.lineTo(-7.2, -9); g.closePath(); g.fill();
+  g.fillStyle = robeD; for (let i = -6; i <= 6; i += 2) tri(g, i, -9.5, i + 1, -7.6, i + 2, -9.5, robeD); // frayed hem
+  // open front: rotting flesh and bare ribs
+  g.fillStyle = fleshD; g.beginPath(); g.moveTo(-2, -23.5); g.lineTo(2.4, -23.5); g.lineTo(1.8, -13.5); g.lineTo(-1.5, -13.5); g.closePath(); g.fill();
+  rr(g, -1.6, -23, 3.6, 9.4, '#1a1810');
+  for (let r = 0; r < 4; r++) { rr(g, -1.7, -22.4 + r * 2.1, 1.5, 0.8, bone); rr(g, 0.6, -22.4 + r * 2.1, 1.6, 0.8, boneD); }
+  rr(g, -0.2, -23, 0.7, 8.6, boneD); // breastbone
+  // rot stains, a torn hole with bone showing, and mould
+  circ(g, -4.3, -12, 1.5, rot); circ(g, 3.8, -18, 1.1, rot); circ(g, 5.2, -11.2, 1.3, '#3a4a1e'); circ(g, -5, -19, 0.9, '#5a6a2a');
+  rr(g, -5.4, -16.4, 2.2, 2.1, '#0c0b08'); rr(g, -5, -15.9, 1.3, 0.6, bone);
+  // chain belt with little skulls
+  rr(g, -5.8, -13.6, 11.6, 1.2, '#4a4038');
+  for (let x = -5; x <= 5; x += 2) rr(g, x, -13.4, 0.8, 0.8, '#6a6058');
+  for (const x of [-3.8, 0.2, 3.8]) { circ(g, x, -11.4, 1.15, bone); rr(g, x - 0.6, -11.7, 0.45, 0.45, '#111'); rr(g, x + 0.2, -11.7, 0.45, 0.45, '#111'); rr(g, x - 0.4, -10.7, 0.9, 0.3, '#111'); }
+  // green ichor dripping off the robe
+  for (let i = 0; i < 3; i++) { const k = (t * 1.1 + i * 0.37) % 1; circ(g, -3.5 + i * 3.4, -9 + k * 9, 0.55, `rgba(140,232,88,${(1 - k) * 0.9})`); }
+  // back arm: a bony hand clawing at the air
+  g.save(); g.translate(-4.5, -21.5); g.rotate(0.5 + Math.sin(t * 2.2) * 0.15 + (cast ? -1.1 : 0));
+  rr(g, -1.2, 0, 2.4, 6, robeM); rr(g, -0.5, 6, 1, 2.6, bone); for (let f = -1; f <= 1; f++) rr(g, f * 0.7 - 0.2, 8.4, 0.45, 1.6, boneD);
+  g.restore();
+  // tattered mantle across the shoulders
+  g.fillStyle = robeM; g.beginPath(); g.moveTo(-6.2, -24.6); g.lineTo(6.2, -24.6); g.lineTo(7.6, -20); g.lineTo(-7.6, -20); g.closePath(); g.fill();
+  for (let i = -7; i <= 6; i += 2.2) tri(g, i, -20.2, i + 1.1, -18.4, i + 2.2, -20.2, robeM);
+  rr(g, -6, -24.6, 12, 0.8, robeL);
+  // hood
+  g.fillStyle = robeD; rrect(g, -5, -33.5, 10, 10, 3.8); g.fill();
+  tri(g, -5, -30, -7.4, -35.4, -2, -33.4, robeD); // hood point flopping back
+  g.fillStyle = '#0a0907'; rrect(g, -3.3, -31.8, 7.4, 7.6, 2.4); g.fill(); // shadowed inside
+  // the face: half rotted flesh, half bare skull
+  g.fillStyle = flesh; rrect(g, -2.4, -31.2, 5.8, 6.6, 1.8); g.fill();
+  rr(g, -2.4, -31.2, 2.6, 4.2, bone); rr(g, -2.4, -27.4, 1.6, 1.4, boneD);   // skull showing on the far side
+  rr(g, 2.4, -30.6, 0.8, 1.8, fleshD); rr(g, 1.2, -25.8, 1.4, 0.6, fleshD);  // peeling skin
+  g.strokeStyle = '#2a2018'; g.lineWidth = 0.35; g.beginPath(); g.moveTo(0.6, -30.8); g.lineTo(1.2, -28); for (let s = 0; s < 3; s++) { g.moveTo(0.4 + s * 0.3, -30.2 + s * 0.9); g.lineTo(1.4 + s * 0.3, -30.2 + s * 0.9); } g.stroke(); // stitches
+  circ(g, -1.1, -28.6, 1.05, '#070605');                        // empty socket...
+  rr(g, -1.7, -28.3, 1.5, 0.4, '#c8a080'); rr(g, -0.4, -28.6, 0.4, 0.8, '#c8a080'); // ...with a worm
+  circ(g, 1.7, -28.6, 1.15, '#0a0a08');                          // the burning eye
+  g.shadowColor = '#8ce858'; g.shadowBlur = 6;
+  circ(g, 1.8, -28.6, 0.75, cast ? '#eaffc0' : '#b8ff7a');
+  g.shadowBlur = 2.5;
+  tri(g, 0.3, -27.4, 0.9, -26.4, -0.3, -26.4, '#1a1410');        // nose hole
+  rr(g, -1.6, -25.9, 4.4, 1.1, '#2a0e0a');                       // gaping mouth
+  for (let i = 0; i < 5; i++) rr(g, -1.4 + i * 0.85, -25.9, 0.5, 0.6, i === 2 ? '#8a7a5a' : '#e4dcc4'); // broken teeth
+  rr(g, -1.3, -24.7, 3.6, 0.7, boneD);                           // hanging jaw
+  g.strokeStyle = '#8a8a78'; g.lineWidth = 0.4; g.beginPath(); for (let i = 0; i < 4; i++) { g.moveTo(-3 + i * 0.5, -31); g.lineTo(-3.6 + i * 0.5 + Math.sin(t * 2 + i) * 0.4, -24 - i * 0.6); } g.stroke(); // stringy hair
+  // the staff: a gnarled bone shaft with a horned skull, its eyes and a green flame burning
+  const sx = 7.8, top = -40 + (cast ? -1.5 : 0);
+  g.strokeStyle = '#4a3a28'; g.lineWidth = 1.7; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(sx - 0.6, -1); g.quadraticCurveTo(sx + 1.4, -20, sx, top + 3); g.stroke();
+  g.strokeStyle = '#6a5438'; g.lineWidth = 0.6; g.beginPath(); g.moveTo(sx - 0.9, -6); g.quadraticCurveTo(sx + 0.9, -20, sx - 0.4, top + 4); g.stroke();
+  g.lineCap = 'butt';
+  circ(g, sx + 0.3, -16, 1.1, '#5a4630'); circ(g, sx + 0.6, -26, 0.9, '#5a4630'); // knots
+  tri(g, sx - 2.4, top + 0.6, sx - 4.6, top - 3.4, sx - 1.2, top - 0.6, boneD); tri(g, sx + 2.4, top + 0.6, sx + 4.6, top - 3.4, sx + 1.2, top - 0.6, boneD); // horns
+  circ(g, sx, top + 1, 2.6, bone); rr(g, sx - 1.6, top + 2.4, 3.2, 1.6, bone);
+  circ(g, sx - 0.9, top + 1, 0.7, '#0a0a08'); circ(g, sx + 0.9, top + 1, 0.7, '#0a0a08');
+  circ(g, sx - 0.9, top + 1, 0.35, '#b8ff7a'); circ(g, sx + 0.9, top + 1, 0.35, '#b8ff7a');
+  for (let i = 0; i < 3; i++) rr(g, sx - 1.2 + i * 0.9, top + 3.4, 0.5, 0.6, '#1a1410');
+  g.save(); g.globalCompositeOperation = 'lighter';
+  const fl = 1 + Math.sin(t * 13) * 0.25 + (cast ? 0.6 : 0);
+  g.globalAlpha = 0.5; tri(g, sx - 2.2 * fl, top - 1, sx + Math.sin(t * 9) * 0.8, top - 6 * fl, sx + 2.2 * fl, top - 1, '#5ac83a');
+  g.globalAlpha = 0.9; tri(g, sx - 1.1, top - 1, sx + Math.sin(t * 11) * 0.5, top - 3.8 * fl, sx + 1.1, top - 1, '#d8ffa8');
+  g.restore();
+  g.shadowBlur = 0;
+  // front arm: tattered sleeve, skeletal fingers gripping the staff (raised high while casting)
+  g.save(); g.translate(4.4, -21.6); g.rotate(cast ? -0.65 : -0.15);
+  g.fillStyle = robeM; g.beginPath(); g.moveTo(-1.6, 0); g.lineTo(1.6, 0); g.lineTo(2.6, 6.4); g.lineTo(-0.6, 6.4); g.closePath(); g.fill();
+  tri(g, -0.6, 6.4, 0.4, 8, 1.2, 6.4, robeM); tri(g, 1.2, 6.4, 2.2, 7.6, 2.6, 6.4, robeD);
+  rr(g, 0.4, 6.4, 1.2, 1.6, bone);
+  for (let f = 0; f < 4; f++) rr(g, 1.4 + f * 0.1, 7.2 + f * 0.6, 2.4, 0.4, f % 2 ? boneD : bone);
+  g.restore();
+  // flies buzzing around the rot
+  for (let i = 0; i < 4; i++) { const a = t * (4 + i) + i * 1.7; rr(g, Math.cos(a) * (7 + i), -16 + Math.sin(a * 1.3) * 7, 0.8, 0.6, '#0a0a0a'); }
+  // trapped souls circling him
+  g.save(); g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 3; i++) {
+    const a = t * 1.6 + i * 2.094, x = Math.cos(a) * 12, y = -18 + Math.sin(a) * 5, back = Math.sin(a) < 0;
+    g.globalAlpha = back ? 0.25 : 0.65;
+    circ(g, x, y, 1.9, '#8ce858'); circ(g, x - Math.sin(a) * 2, y + Math.cos(a) * 0.8, 1.1, '#5a9a3a'); circ(g, x, y, 0.8, '#efffd8');
+  }
+  g.restore();
+};
+// ===== The Necromancer's undead =====
+// Shambling Corpse: hunched, rotting, one glowing eye, arms reaching. Rotting Brute: the same corpse
+// grown huge and bloated, with stitched belly, pustules, bone spikes and chains.
+SPRITES.zombie = function (g, t, mv, e) {
+  const brute = e && e.brute, fuse = e && e.fuse > 0;
+  const skin = brute ? '#6c7a52' : '#7d8a62', skinD = brute ? '#4f5a3a' : '#5a6644', cloth = '#4a3d30', clothD = '#33291f', bone = '#ddd5bd';
+  const lurch = Math.sin(t * 3) * 0.6;
+  // legs: one dragging behind, bone showing through the shin
+  rr(g, -4 + mv * 0.4, -11, 3, 11, clothD); rr(g, 1 - mv * 0.4, -11, 3, 7, cloth); rr(g, 1 - mv * 0.4, -4, 3, 4, skinD);
+  rr(g, 1.9 - mv * 0.4, -8, 1, 4.5, bone);
+  rr(g, -4.6 + mv * 0.4, -1.4, 4, 1.4, '#2a221a'); rr(g, 1 - mv * 0.4, -1.4, 4, 1.4, skinD);
+  g.save(); g.translate(0, -11); g.rotate(0.2 + lurch * 0.04);
+  // back arm reaching forward
+  g.save(); g.translate(1, -10); g.rotate(-1.4 + Math.sin(t * 4 + 1) * 0.12);
+  rr(g, 0, -1.3, 8, 2.6, skinD); for (let f = 0; f < 3; f++) rr(g, 7.6, -1.3 + f * 0.9, 2, 0.6, skinD);
+  g.restore();
+  // body (a big bloated belly on the brute)
+  rr(g, -5, -13, 10, 13, skin);
+  if (brute) {
+    circ(g, 2, -5, 7, skin); circ(g, 3.5, -4, 4.5, '#7d8c5e');
+    g.strokeStyle = '#2a1a10'; g.lineWidth = 0.5; g.beginPath(); g.moveTo(1, -10); g.lineTo(4, 0); for (let s = 0; s < 5; s++) { g.moveTo(0.8 + s * 0.6, -9 + s * 2); g.lineTo(2.8 + s * 0.6, -9.6 + s * 2); } g.stroke();
+    for (const [px, py] of [[5.5, -7], [-1.5, -3], [6, -2.5], [-3, -9]]) { circ(g, px, py, 1.1, '#a8b860'); circ(g, px - 0.3, py - 0.3, 0.4, '#e8f0a0'); } // pustules
+    tri(g, -5, -13, -6.5, -17.5, -3, -13, bone); tri(g, -2, -13, -2.5, -18, 0, -13, bone); // bone spikes from the back
+    rr(g, -5, -6, 10, 0.8, '#5a5048'); rr(g, -5, -5.2, 10, 0.5, '#7a7068'); // a chain wrapped round
+  }
+  // torn shirt with holes: ribs, a dark wound and green rot
+  g.fillStyle = cloth; g.beginPath(); g.moveTo(-5, -13); g.lineTo(5, -13); g.lineTo(5, -6); g.lineTo(3, -4); g.lineTo(1, -6.5); g.lineTo(-1.5, -3.5); g.lineTo(-5, -5.5); g.closePath(); g.fill();
+  rr(g, 1, -11.5, 3, 4, '#1a140e'); for (let r = 0; r < 3; r++) rr(g, 1.2, -11.2 + r * 1.3, 2.6, 0.6, bone);
+  rr(g, -3.6, -9, 2, 2.4, '#3a1210'); circ(g, -3.5, -12, 1.2, '#6a8a3a'); circ(g, 4.4, -5, 0.9, '#6a8a3a');
+  // head pushed forward: one glowing eye, an empty socket, a gaping jaw, skull showing
+  g.fillStyle = skin; rrect(g, 1, -20.5, 7, 7.5, 2); g.fill();
+  rr(g, 1.2, -20.5, 2.6, 2.2, bone); rr(g, 6.4, -18, 1.4, 1.4, skinD);
+  circ(g, 3, -16.8, 0.95, '#14140c');
+  circ(g, 5.6, -16.8, 1.0, '#14140c');
+  g.shadowColor = '#b8ff7a'; g.shadowBlur = 4; circ(g, 5.7, -16.8, 0.6, '#d8ff8a'); g.shadowBlur = 2.5;
+  rr(g, 3.6, -14.4, 4.2, 1.6, '#2a0e0a'); for (let i = 0; i < 4; i++) rr(g, 3.8 + i * 1, -14.4, 0.5, 0.6, '#e0d8c0');
+  g.strokeStyle = '#6a6a58'; g.lineWidth = 0.4; g.beginPath(); for (let i = 0; i < 3; i++) { g.moveTo(1.5 + i, -20.3); g.lineTo(0.8 + i + Math.sin(t * 2 + i) * 0.3, -16 - i * 0.5); } g.stroke(); // a few strands of hair
+  // front arm reaching out, the elbow bone poking through
+  g.save(); g.translate(3, -10); g.rotate(-1.3 + Math.sin(t * 4) * 0.14);
+  rr(g, 0, -1.4, 9, 2.8, skin); rr(g, 3.8, -0.4, 2, 1, bone);
+  for (let f = 0; f < 3; f++) rr(g, 8.6, -1.4 + f * 0.95, 2.2, 0.6, skin);
+  g.restore();
+  g.restore();
+  // flies, and a sickly glow when the Necromancer is about to make it burst
+  for (let i = 0; i < 2; i++) { const a = t * (5 + i) + i * 2; rr(g, Math.cos(a) * 6 + 2, -24 + Math.sin(a * 1.4) * 3, 0.7, 0.5, '#0a0a0a'); }
+  if (fuse) { g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.35 + Math.sin(t * 20) * 0.25; circ(g, 1, -15, 12, '#8ce858'); g.restore(); }
+};
+SPRITES.zombie_brute = function (g, t, mv, e) { g.save(); g.scale(1.6, 1.6); SPRITES.zombie(g, t, mv / 1.6, {brute:true, fuse:e && e.fuse}); g.restore(); };
 
 // ===== Projectiles =====
 // Your own spells: a glowing trail, a big bright halo, and a larger core.
@@ -1279,6 +1434,64 @@ function drawProjectile(g, p, time) {
       g.globalAlpha = 0.45; circ(g, p.x, p.y, p.r + 3, '#ff6a1a'); g.globalAlpha = 1; circ(g, p.x, p.y, p.r, '#ffcc4a'); break;
     case 'coin': case 'goldrain':
       circ(g, p.x, p.y, p.r, '#f5cc45'); circ(g, p.x - 0.8, p.y - 0.8, p.r * 0.4, '#fff2a8'); break;
+    // ---- the Necromancer's attacks ----
+    case 'bonespear': { // a sharpened bone with a faint green trail
+      const a = p.ang != null ? p.ang : p.vx ? Math.atan2(p.vy, p.vx) : 0;
+      g.save(); g.translate(p.x, p.y); g.rotate(a);
+      g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.35; rr(g, -14, -1.5, 10, 3, '#8ce858'); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+      rr(g, -7, -1, 12, 2, '#e8e0c8'); rr(g, -7, 0.3, 12, 0.7, '#b8ae92'); tri(g, 5, -2, 5, 2, 9, 0, '#fff8e0');
+      circ(g, -7.5, -1, 1.3, '#d8d0b8'); circ(g, -7.5, 1, 1.3, '#d8d0b8');
+      g.restore(); break;
+    }
+    case 'gravemark': case 'fusemark': { // warning on the ground: something is about to happen here
+      const fuse = p.type === 'fusemark', a = 0.45 + 0.35 * Math.sin(time * (fuse ? 18 : 12));
+      g.save(); g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = a * (fuse ? 0.35 : 0.5); g.fillStyle = fuse ? '#9adf4a' : '#8ce858';
+      g.beginPath(); g.ellipse(p.x, p.y, p.r, p.r * (fuse ? 1 : 0.35), 0, 0, Math.PI * 2); g.fill();
+      g.globalAlpha = a; g.strokeStyle = fuse ? '#d8ff8a' : '#b8ff7a'; g.lineWidth = 1;
+      g.beginPath(); g.ellipse(p.x, p.y, p.r, p.r * (fuse ? 1 : 0.35), 0, 0, Math.PI * 2); g.stroke();
+      g.restore();
+      if (!fuse) { g.strokeStyle = '#1a140a'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(p.x - 7, p.y); g.lineTo(p.x - 2, p.y - 1); g.lineTo(p.x + 3, p.y + 1); g.lineTo(p.x + 8, p.y - 0.5); g.stroke(); }
+      break;
+    }
+    case 'gravehand': { // skeletal hands bursting out of the ground
+      const by = p.y + 10;
+      for (const [ox, h, lean] of [[-6, 13, -0.25], [0, 17, 0.05], [6, 12, 0.3]]) {
+        g.save(); g.translate(p.x + ox, by); g.rotate(lean);
+        rr(g, -1, -h, 2, h, '#d8d0b8'); rr(g, -1, -h, 0.7, h, '#efe8d4');
+        for (let f = -2; f <= 2; f++) { g.save(); g.translate(f * 0.9, -h); g.rotate(f * 0.25); rr(g, -0.35, -4, 0.7, 4, '#e8e0c8'); g.restore(); }
+        g.restore();
+      }
+      g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.3; circ(g, p.x, by - 8, 12, '#8ce858'); g.restore();
+      rr(g, p.x - 10, by - 2, 20, 3, '#4a3a24');
+      break;
+    }
+    case 'soulwisp': { // a hungry green soul with a wailing face
+      g.save(); g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = 0.35; circ(g, p.x, p.y, 6, '#5ac83a');
+      g.globalAlpha = 0.9; circ(g, p.x, p.y, 2.8, '#b8ff7a');
+      g.restore();
+      rr(g, p.x - 1.2, p.y - 0.8, 0.8, 0.8, '#1a3010'); rr(g, p.x + 0.5, p.y - 0.8, 0.8, 0.8, '#1a3010'); rr(g, p.x - 0.4, p.y + 0.6, 0.9, 1, '#1a3010');
+      break;
+    }
+    case 'plaguebomb':
+      circ(g, p.x, p.y, p.r, '#5a6a24'); circ(g, p.x - 1, p.y - 1.2, p.r * 0.45, '#9ab84a'); circ(g, p.x + 1.5, p.y + 1, 1, '#3a4a14');
+      g.globalAlpha = 0.5; circ(g, p.x, p.y + p.r + 1.5, 1, '#8ab84a'); g.globalAlpha = 1;
+      break;
+    case 'plague': { // a lingering poison cloud
+      g.save();
+      for (let i = 0; i < 6; i++) {
+        const a = time * 0.6 + i * 1.05, ox = Math.cos(a) * p.r * 0.45, oy = Math.sin(a * 1.3) * p.r * 0.2;
+        g.globalAlpha = 0.22; circ(g, p.x + ox, p.y + oy, p.r * (0.5 + (i % 3) * 0.12), i % 2 ? '#7aa040' : '#5a8030');
+      }
+      g.globalAlpha = 0.6; for (let i = 0; i < 4; i++) { const k = (time * 0.8 + i * 0.25) % 1; circ(g, p.x - p.r * 0.5 + i * p.r * 0.33, p.y + p.r * 0.3 - k * p.r * 0.8, 1 + k, '#b8d870'); }
+      g.restore(); break;
+    }
+    case 'corpseblast': { // a burst of rot and bone
+      g.save(); g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = 0.4; circ(g, p.x, p.y, p.r * 0.85, '#7ab83a'); g.globalAlpha = 0.6; circ(g, p.x, p.y, p.r * 0.4, '#d8ff8a');
+      g.restore(); break;
+    }
     case 'thorn':
       g.save(); g.translate(p.x, p.y); g.rotate(Math.atan2(p.vy, p.vx)); rr(g, -5, -1, 10, 2, '#5fbf4a'); tri(g, 5, -2, 5, 2, 8, 0, '#8fe07a'); g.restore(); break;
     case 'arrow': case 'power_arrow': {

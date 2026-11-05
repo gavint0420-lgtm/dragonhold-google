@@ -117,8 +117,8 @@ it('pot_m4', {name:'Arcane Elixir', kind:'potion', mana:1, col:'#b04bff', desc:'
 it('gold_lure', {name:'Gold Lure', kind:'lure', stack:10, col:'#f5cc45', desc:'Throw it. The Gilded Wyrm cannot resist gold: it stops to admire it and takes 50% more damage.'});
 // Boss summons: craft one and use it (left click) to call a boss. `summons` is the boss it calls
 // (a key in BOSSES); null means that boss hasn't been added yet, so using it does nothing and keeps the item.
-it('summon_totem', {name:'Ominous Totem', kind:'summon', stack:5, shape:'totem', col:'#8a5ab8', summons:null,
-  desc:'A carved totem that hums with dark power. Use it to summon a boss. It crumbles once the boss appears.'});
+it('summon_totem', {name:'Ominous Totem', kind:'summon', stack:5, shape:'totem', col:'#8a5ab8', summons:'necromancer',
+  desc:'A carved totem that hums with dark power. Use it to summon Mortivar, the Rotting Necromancer, the deadliest foe in the realm. It crumbles once he appears.'});
 it('summon_crown', {name:'Cursed Crown', kind:'summon', stack:5, shape:'crown', col:'#c8a040', summons:null,
   desc:'A tarnished crown that whispers in the dark. Use it to summon a mighty boss. It shatters once the boss appears.'});
 
@@ -264,6 +264,7 @@ const CLASS_DROPS = {
   archlich:['soulreaver', 'soulstring', 'phylactery'],
   magma_wyrm:['magma_fang', 'cinderfang', 'pyraxis_staff'],
   gold_dragon:['hoardbreaker', 'aurex_talon', 'hoard_scepter'],
+  necromancer:['gravelord_scythe', 'bonewhisper', 'mortivar_staff'],
 };
 const CLASS_INDEX = {sword:0, dagger:1, wand:2};
 const CLASS_LABEL = {sword:'Knight', dagger:'Rogue', wand:'Wizard'};
@@ -288,6 +289,9 @@ const EN = {
   wraith:{name:'Wraith', hp:60, dmg:16, xpm:1.7, ai:'flyer', w:16, h:26, spd:75, drop:'spectral_wand', coins:7},
   ogre:{name:'Ogre', hp:160, dmg:30, xpm:2.2, ai:'walker', w:26, h:42, spd:50, drop:'ogre_maul', coins:10},
   dark_knight:{name:'Dark Knight', hp:140, dmg:28, xpm:2.2, ai:'walker', w:14, h:31, spd:80, charge:true, drop:'shadow_blade', coins:12},
+  // the Necromancer's undead (they only appear when he raises them)
+  zombie:{name:'Shambling Corpse', hp:150, dmg:30, xpm:1.5, ai:'walker', w:14, h:31, spd:48, coins:0},
+  zombie_brute:{name:'Rotting Brute', hp:420, dmg:52, xpm:3, ai:'walker', w:26, h:50, spd:40, coins:0},
   wyvern:{name:'Wyvern', hp:120, dmg:26, xpm:2.2, ai:'flyer', w:32, h:18, spd:115, swoop:true, drop:'storm_wand', coins:12},
   lich:{name:'Lich', hp:130, dmg:24, xpm:2.6, ai:'caster', w:14, h:31, spd:45, proj:'skullbolt', shootCd:2.4, summon:'skeleton', drop:'necro_staff', coins:15},
   drake:{name:'Fire Drake', hp:220, dmg:34, xpm:3, ai:'flyer', w:38, h:22, spd:95, proj:'fireball', shootCd:2.6, drop:'dragonfang', coins:18, scale:true},
@@ -569,3 +573,16 @@ function arenaAt(tx, ty) {
 const QUESTS_ON = false;
 // The bosses in the order Sir Aldric suggests (by recommended level); Aurex is the final one.
 const BOSS_ORDER = Object.keys(BOSSES).sort((a, b) => BOSSES[a].lvl - BOSSES[b].lvl);
+
+// ===== Summoned bosses: called with a crafted item, wherever you are =====
+// They're added to BOSSES as hidden (non-enumerable) entries, so every boss-fight function works for them
+// (BOSSES.necromancer), but the world map, altars, arenas and the boss hunt list (which loop over BOSSES) skip them.
+// `x` is set to the spot where the item was used. repeatable: craft another item to fight again.
+const SUMMON_BOSSES = ['necromancer'];
+Object.defineProperty(BOSSES, 'necromancer', {enumerable:false, writable:true, value:
+  {name:'Mortivar, the Rotting Necromancer', lvl:60, hp:7000, dmg:62, w:26, h:64, x:0, coins:25000,
+    pattern:'necromancer', summoned:true, repeatable:true, minionLvl:58}});
+// his loot (one for each class)
+wpn('gravelord_scythe', "Gravelord's Scythe", 'sword', 135, {fx:'reap', col:'#8ce858', fxName:'Reap the Dead', fxDesc:'Heal 10% of damage dealt, 25% crit chance, and every kill restores 6% of your health.', boss:true});
+wpn('bonewhisper', 'Bonewhisper', 'bow', 128, {fx:'raise', col:'#d8e8c0', fxName:'Grave Arrows', fxDesc:'Enemies killed by its arrows rise and fight for you for 10s.', boss:true});
+wpn('mortivar_staff', 'Staff of Mortivar', 'wand', 130, {fx:'raise', mana:8, cd:0.4, proj:'skull', col:'#8ce858', fxName:'Legion of the Dead', fxDesc:'Homing skulls. Enemies they kill rise and fight for you for 10s.', boss:true});

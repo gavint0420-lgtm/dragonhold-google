@@ -173,7 +173,8 @@ function onPeerMsg(from, d) {
       break;
     }
     case 'summon':
-      if (NET.host && BOSSES[d.bid] && !G.bossesDone[d.bid] && !G.boss) summonBoss(d.bid);
+      // arena bosses can only be fought once; item-summoned ones (like the Necromancer) appear where the item was used
+      if (NET.host && BOSSES[d.bid] && (BOSSES[d.bid].repeatable || !G.bossesDone[d.bid]) && !G.boss) summonBoss(d.bid, d.x, d.y);
       break;
     case 'lure':
       if (NET.host) lures.push({x:d.x, y:d.y, t:5});

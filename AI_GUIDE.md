@@ -70,6 +70,13 @@ Two AI agents work on this project through its GitHub repository. Follow `AGENTS
   - `BOSSES` has 8 entries. Each has an altar and an arena built by `buildArena(k, x, hs)` (see `ARENA_NAMES`). The dragon's arena is the castle hall.
   - `summonBoss(bid)` and `updateBoss` switch on `bossPattern(bid)`, which is one of goblin_king, witch_queen, ogre_warlord, archlich or gold_dragon. New bosses reuse a pattern through `pattern` plus `minion`, `proj`, `ringProj`, `throwProj` and `fast`.
   - Each boss's weapon is in `BOSSES[k].drop`, and its sprite is `SPRITES[bid]`.
+  - **Summoned bosses** (`SUMMON_BOSSES`, in `data.js`):
+    - They're called by a crafted item (`kind:'summon'`, whose `summons` field names the boss) wherever the item is used.
+    - They're added to `BOSSES` as non-enumerable entries, so all boss code works for them, but loops over `BOSSES` (map, altars, arenas, boss hunt) skip them.
+    - Flags: `summoned:true`, `repeatable:true`. `summonBoss(bid, x, y)` sets `BOSSES[bid].x` and `e.groundY` to the spot where the item was used.
+    - The first one is `necromancer` (Mortivar, called by the Ominous Totem). His fight is `necromancerAI`: 3 phases, attacks, and undead minions `zombie` / `zombie_brute`.
+    - Projectile flags: `harmless` (warning marks), `drain` (heals the boss on hit) and `cloud` (leaves a plague cloud).
+    - The Cursed Crown (`summon_crown`) is waiting for the second boss.
 - **Progression:**
   - `QUESTS_ON = false`, so the game is a boss hunt. `nextBoss()` and `BOSS_ORDER` drive the HUD tracker, J opens the boss log, and Sir Aldric gives hints.
   - `BARRIERS_ON = false`, so the area walls are off.

@@ -635,8 +635,9 @@ function useSummonItem(slot) {
   p.summonMsgT = G.time;
   addParticles(ecx(p), p.y + 4, it.col, 18, 90, 0.6, -60);
   if (!bid || !BOSSES[bid]) { toast(`The ${it.name} hums softly... but nothing answers yet. Its boss is still on the way!`, 'blue'); return; }
-  if (G.boss) { toast('A boss is already here!'); return; }
-  if (NET.on && !NET.host) netSend('host', {k:'summon', bid}); else summonBoss(bid);
+  if (G.boss || (NET.on && !NET.host && NET.bossId)) { toast('A boss is already here!'); return; }
+  const fx = ecx(p), fy = p.y + p.h; // it appears where you stand
+  if (NET.on && !NET.host) netSend('host', {k:'summon', bid, x:fx, y:fy}); else summonBoss(bid, fx, fy);
   consumeSlot(slot, 1);
   toast(`The ${it.name} crumbles to dust. Something is coming...`, 'red');
 }
@@ -745,10 +746,10 @@ const ENEMY_HEALTH = 1.75; // scaled to match knight broadsword & rogue bow powe
 const ENEMY_DAMAGE_SCALE = 1.20; // scaled enemy damage (+20%) to keep combat challenging
 const ATK_TIME = 0.42, ATK_STRIKE = 0.16, CAST_TIME = 0.4; // enemy attack animation timing
 const SLASH_COL = {werewolf:'#ff8a8a', spider:'#c8ff9a', rat:'#ffd0b0', skeleton:'#f0ead6', wraith:'#8ff0ff', drake:'#ffb060', wyvern:'#a0fff0', dark_knight:'#d0a0ff',
-  goblin:'#d8e0a0', orc:'#ffb080', ogre:'#e8c890', troll:'#b8e0b0', witch:'#d8a0ff', lich:'#b8ff9a'};
+  goblin:'#d8e0a0', orc:'#ffb080', ogre:'#e8c890', troll:'#b8e0b0', witch:'#d8a0ff', lich:'#b8ff9a', zombie:'#9be36b', zombie_brute:'#9be36b'};
 // How each enemy's melee looks: a weapon slash, claw rakes, or a bite. Heavy hitters also slam an impact star and dust.
-const ATTACK_STYLE = {rat:'bite', spider:'bite', drake:'bite', wyvern:'bite', werewolf:'claw', troll:'claw', wraith:'claw'};
-const HEAVY = {ogre:1, troll:1, dark_knight:1, orc:1};
+const ATTACK_STYLE = {rat:'bite', spider:'bite', drake:'bite', wyvern:'bite', werewolf:'claw', troll:'claw', wraith:'claw', zombie:'claw', zombie_brute:'claw'};
+const HEAVY = {ogre:1, troll:1, dark_knight:1, orc:1, zombie_brute:1};
 function enemySlashFx(e) {
   const style = ATTACK_STYLE[e.type] || 'slash', col = SLASH_COL[e.type] || '#ffffff';
   const fx = {type:style === 'bite' ? 'bite' : 'slash', x:ecx(e) + e.facing * e.w * (style === 'bite' ? 0.6 : 0.45), y:e.y + e.h * (style === 'bite' ? 0.35 : 0.45), dir:e.facing,
@@ -979,6 +980,7 @@ function updateProjectiles(dt) {
       } else {
         pr.dead = true;
         addParticles(ox, oy, pr.owner === 'p' ? '#ddd' : '#c88', 4, 50, 0.3);
+        if (pr.cloud) makePlagueCloud(ox, oy, pr.dmg * 0.45); // plague bombs burst into a poison cloud
         continue;
       }
     }
@@ -996,10 +998,13 @@ function updateProjectiles(dt) {
           else { pr.dead = true; break; }
         }
       }
-    } else if (pr.owner === 'e') {
+    } else if (pr.owner === 'e' && !pr.harmless) { // (harmless = just a warning mark on the ground)
       for (const t of allTargets()) {
         if (pr.x > t.x - pr.r && pr.x < t.x + t.w + pr.r && pr.y > t.y - pr.r && pr.y < t.y + t.h + pr.r) {
           damageTarget(t, pr.dmg, pr.x, {fire:pr.fire});
+          // Soul Drain wisps heal the boss that sent them
+          if (pr.drain && G.boss && !G.boss.dead) { G.boss.hp = Math.min(G.boss.maxHp, G.boss.hp + pr.dmg * 1.5); addParticles(ecx(G.boss), ecy(G.boss), '#8ce858', 8, 80, 0.5, -60); }
+          if (pr.cloud) makePlagueCloud(pr.x, pr.y, pr.dmg * 0.45);
           if (!pr.pierce) { pr.dead = true; break; }
         }
       }
@@ -1046,11 +1051,17 @@ function checkBossLobbyScaling(e) {
 
 // ===== Bosses =====
 const BOSS_BASE = {goblin_king:'goblin', witch_queen:'witch', ogre_warlord:'ogre', archlich:'lich', gold_dragon:'drake',
-  orc_warchief:'orc', bloodmoon_alpha:'werewolf', magma_wyrm:'drake'};
+  orc_warchief:'orc', bloodmoon_alpha:'werewolf', magma_wyrm:'drake', necromancer:'lich'};
 const bossPattern = bid => BOSSES[bid].pattern || bid;
-function summonBoss(bid) {
+// atX/atY: where a summon item was used (for bosses called by an item); arena bosses ignore them
+function summonBoss(bid, atX, atY) {
   if (G.boss) return;
   const b = BOSSES[bid], base = EN[BOSS_BASE[bid]];
+  let groundY = null;
+  if (b.summoned) {
+    const px = atX != null ? atX : ecx(player), py = atY != null ? atY : player.y + player.h;
+    b.x = clamp(Math.floor(px / TILE), 30, WW - 30); groundY = py;
+  }
   const sc = bid === 'gold_dragon' ? b.w / base.w : b.h / base.h;
   const e = {id:nextEnemyId++, type:bid, look:bid, boss:true, bid, def:{name:b.name}, name:b.name, w:b.w, h:b.h, sc, vx:0, vy:0, facing:-1, onGround:false,
     lvl:b.lvl, t:0, seed:0, flash:0, atkCd:0, kbRes:0, state:'intro', stT:1.5, shootT:2, summonT:8, slowT:0, rootT:0, stunT:0, curseT:0, poisonT:0, burnT:0, dotTick:0.5};
@@ -1063,6 +1074,13 @@ function summonBoss(bid) {
   e.lobbyPlayers = bs.players;
   const ax = b.x * TILE;
   if (bid === 'gold_dragon') { e.x = (CASTLE.x1 - 30) * TILE; e.y = (CASTLE.top + 8) * TILE; }
+  else if (b.summoned) {
+    // rises out of the ground a little way from whoever called it
+    e.groundY = groundY; e.fly = true;
+    const side = Math.random() < 0.5 ? -1 : 1;
+    teleportClear(e, () => ax + side * (140 + Math.random() * 60), () => groundY - 70 - Math.random() * 30);
+    if (!e.x) { e.x = ax - e.w / 2; e.y = groundY - e.h - 40; }
+  }
   else if (bossPattern(bid) === 'witch_queen' || bossPattern(bid) === 'archlich') { e.x = ax + 120; e.y = (surf[b.x] - 8) * TILE; e.fly = true; }
   else { e.x = ax + 13 * TILE; e.y = (surf[b.x] - 1) * TILE - e.h; }
   // never appear inside part of the arena (platforms, walls)
@@ -1104,6 +1122,193 @@ function bossReward(bid) {
   else showBanner('BOSS DEFEATED', `${b.name} has fallen.`);
   saveGame(true);
 }
+// ===== Mortivar, the Rotting Necromancer (summoned with the Ominous Totem) =====
+// The hardest fight in the game. Three phases (above 66%, above 33%, below 33% health). He floats out of
+// reach and never stops casting: Bone Spear volleys, Grave Hands, Soul Drain, Plague Bombs, the Death Nova,
+// a teleport ambush and Corpse Explosion, while raising waves of undead that get nastier every phase.
+const NECRO_MAX_MINIONS = [0, 6, 8, 10];
+// the floor under (x, y): the first solid tile going down, climbing out if (x, y) is inside rock
+function groundBelow(x, y) {
+  const tx = Math.floor(x / TILE); let ty = Math.floor(y / TILE);
+  for (let k = 0; k < 30 && !isSolid(tx, ty); k++) ty++;
+  for (let k = 0; k < 30 && isSolid(tx, ty - 1); k++) ty--;
+  return ty * TILE;
+}
+function necroRaise(e, list, cap) {
+  const targets = allTargets();
+  let n = enemies.filter(m => m.summoner === e && !m.dead).length;
+  for (const type of list) {
+    if (n >= cap) break;
+    const t = targets[Math.floor(Math.random() * targets.length)] || player;
+    const x = ecx(t) + (Math.random() < 0.5 ? -1 : 1) * (70 + Math.random() * 150);
+    const m = makeEnemy(type, 0, 0, BOSSES[e.bid].minionLvl || 58), flyer = EN[type].ai === 'flyer';
+    m.x = x - m.w / 2;
+    m.y = flyer ? ecy(t) - 90 - Math.random() * 40 : groundBelow(x, ecy(t) - 20) - m.h - 0.5;
+    if (rectSolid(m.x, m.y, m.w, m.h)) continue;
+    m.summoned = true; m.summoner = e; m.aggro = true;
+    enemies.push(m); n++;
+    // clawing up out of the earth
+    addParticles(ecx(m), m.y + m.h, '#5a4a30', 18, 120, 0.7, 260);
+    addParticles(ecx(m), m.y + m.h - 4, '#8ce858', 12, 80, 0.6, -40);
+    addProj({x:ecx(m), y:m.y + m.h - 3, vx:0, vy:0, type:'gravemark', dmg:0, harmless:true, owner:'e', life:0.8, r:Math.max(10, m.w * 0.6), ghost:true, pierce:true});
+  }
+}
+function makePlagueCloud(x, y, dmg) {
+  addProj({x, y:y - 10, vx:0, vy:0, type:'plague', dmg, owner:'e', life:5, r:26, ghost:true, pierce:true});
+  addParticles(x, y, '#8ab84a', 20, 90, 0.8, -30);
+}
+function necromancerAI(e, b, p, dx, dy, dt, adt, frozen) {
+  const gy = bossGroundY(e);
+  const hpK = e.hp / e.maxHp, phase = hpK < 0.33 ? 3 : hpK < 0.66 ? 2 : 1, cap = NECRO_MAX_MINIONS[phase];
+  e.castT = Math.max(0, (e.castT || 0) - dt);
+  // grave hands bursting up after their warning marks
+  if (e.pending) {
+    for (const q of e.pending) if ((q.t -= adt) <= 0 && !q.done) {
+      q.done = true;
+      addProj({x:q.x, y:q.y - 10, vx:0, vy:0, type:'gravehand', dmg:e.dmg * 1.1, owner:'e', life:0.55, r:13, ghost:true, pierce:true});
+      addParticles(q.x, q.y, '#5a4a30', 14, 140, 0.6, 300); shake(2);
+    }
+    e.pending = e.pending.filter(q => !q.done);
+  }
+  // Corpse Explosion fuses: the zombie stands still, flickers, then bursts
+  for (const m of enemies) if (m.summoner === e && m.fuse > 0 && !m.dead) {
+    m.fuse -= dt; m.rootT = Math.max(m.rootT || 0, 0.1); m.flash = Math.floor(m.fuse * 8) % 2 ? 0.05 : 0;
+    if (m.fuse <= 0) {
+      const big = m.type === 'zombie_brute', R = big ? 80 : 56;
+      m.dead = true;
+      addProj({x:ecx(m), y:ecy(m), vx:0, vy:0, type:'corpseblast', dmg:e.dmg * (big ? 1.5 : 1.1), owner:'e', life:0.3, r:R, ghost:true, pierce:true});
+      effects.push({type:'ring', x:ecx(m), y:ecy(m), r:R, life:0.4, max:0.4, col:'#8ce858'});
+      addParticles(ecx(m), ecy(m), '#6a8a3a', 36, 220, 0.8, 200); addParticles(ecx(m), ecy(m), '#c8b8a0', 14, 180, 0.6, 300);
+      shake(6);
+    }
+  }
+  // a new phase: he roars and raises a wave at once
+  if (phase > (e.phase || 1) && e.state !== 'intro') {
+    e.phase = phase; e.state = 'raise'; e.stT = 1.4; e.did = false; e.castT = CAST_TIME * 3;
+    toast(phase === 2 ? 'Mortivar: "Rise, my brutes! Crush them!"' : 'Mortivar: "ENOUGH! The whole graveyard answers me!"', 'red');
+    if (phase === 3) { showBanner('ARMY OF THE DEAD', 'Mortivar calls every corpse in the land.'); e.army = true; }
+    shake(8);
+  }
+  // movement: hover above and away from the nearest knight, drifting and bobbing
+  const fast = phase === 3 ? 1.35 : 1;
+  if (e.state === 'intro') {
+    e.vx *= 0.9; e.vy = -14;
+    if (e.stT <= 0) { e.state = 'float'; e.stT = 2.5; e.phase = 1; toast('Mortivar: "Your bones will serve me, knight."', 'red'); }
+  } else {
+    const want = e.state === 'float' ? 210 : 170;
+    const tx = ecx(p) - Math.sign(dx || 1) * want + Math.sin(e.t * 0.7) * 40, ty = Math.min(gy - 80, ecy(p) - 80) + Math.sin(e.t * 1.8) * 16;
+    const sp = (e.state === 'float' ? 150 : 60) * fast;
+    e.vx = approach(e.vx, clamp((tx - ecx(e)) * 1.4, -sp, sp), 380 * dt);
+    e.vy = approach(e.vy, clamp((ty - ecy(e)) * 1.4, -sp, sp), 380 * dt);
+  }
+  const spears = (n, spread, speed, a0) => {
+    for (let i = 0; i < n; i++) { const a = a0 + (i - (n - 1) / 2) * spread; addProj({x:ecx(e), y:ecy(e) - 6, vx:Math.cos(a) * speed, vy:Math.sin(a) * speed, type:'bonespear', dmg:e.dmg * 0.7, owner:'e', life:2.6, r:4, ang:a}); }
+  };
+  if (e.state === 'float') {
+    // Bone Spears: a fanned volley of sharpened bones
+    if (e.shootT <= 0) { e.shootT = phase === 3 ? 1.0 : phase === 2 ? 1.3 : 1.6; spears(phase === 3 ? 5 : 3, 0.16, 340, Math.atan2(dy, dx)); e.castT = CAST_TIME; }
+    if (e.summonT <= 0) { e.summonT = phase === 3 ? 8 : phase === 2 ? 10 : 12; e.state = 'raise'; e.stT = 1.3; e.did = false; e.castT = CAST_TIME * 3; }
+    else if (e.stT <= 0) {
+      const zombies = enemies.filter(m => m.summoner === e && !m.dead && (m.type === 'zombie' || m.type === 'zombie_brute') && !(m.fuse > 0)).length;
+      const opts = [['gravehands', 3], ['souldrain', 2], ['plague', 2], ['nova', 2], ['teleport', phase >= 2 ? 2 : 1]];
+      if (zombies >= 2) opts.push(['detonate', phase >= 2 ? 3 : 1.5]);
+      let r = Math.random() * opts.reduce((s, o) => s + o[1], 0), pick = opts[0][0];
+      for (const [k, w] of opts) if ((r -= w) <= 0) { pick = k; break; }
+      e.state = pick; e.did = false; e.fired = false; e.subT = 0; e.shotCount = 0; e.castT = CAST_TIME * 2;
+      e.stT = {gravehands:1.6, souldrain:2.4, plague:1.2, nova:1.6, teleport:1.0, detonate:1.4}[pick];
+    }
+  } else if (e.state === 'raise') {
+    // Raise the Dead: tougher waves each phase, and one huge army when phase 3 begins
+    if (!e.did && e.stT < 0.6) {
+      e.did = true;
+      const waves = {
+        1: [['zombie', 'zombie', 'skeleton'], ['zombie', 'zombie', 'zombie']],
+        2: [['zombie_brute', 'zombie', 'zombie'], ['skeleton', 'skeleton', 'wraith', 'zombie']],
+        3: [['zombie_brute', 'zombie_brute', 'zombie', 'wraith'], ['zombie_brute', 'skeleton', 'skeleton', 'wraith', 'wraith']]};
+      let list = waves[phase][Math.floor(Math.random() * 2)], big = false;
+      if (e.army) { e.army = false; big = true; list = ['zombie_brute', 'zombie_brute', 'zombie', 'zombie', 'zombie', 'skeleton', 'skeleton', 'wraith', 'wraith']; }
+      necroRaise(e, list, big ? cap + 2 : cap);
+      shake(4);
+    }
+    if (e.stT <= 0) { e.state = 'float'; e.stT = 1.5; }
+  } else if (e.state === 'gravehands') {
+    // Grave Hands: glowing marks under every knight (and a few near them), then skeletal hands burst up
+    if (!e.did) {
+      e.did = true; e.pending = e.pending || [];
+      for (let w = 0; w < (phase === 3 ? 2 : 1); w++) for (const t of allTargets()) {
+        for (const sx of [ecx(t), ecx(t) + (Math.random() - 0.5) * 140, ecx(t) + (Math.random() - 0.5) * 220]) {
+          const fy = groundBelow(sx, t.y + t.h - 8), delay = 0.85 + w * 0.7;
+          addProj({x:sx, y:fy - 3, vx:0, vy:0, type:'gravemark', dmg:0, harmless:true, owner:'e', life:delay, r:13, ghost:true, pierce:true});
+          e.pending.push({t:delay, x:sx, y:fy});
+        }
+      }
+    }
+    if (e.stT <= 0) { e.state = 'float'; e.stT = phase === 3 ? 1.6 : 2.4; }
+  } else if (e.state === 'souldrain') {
+    // Soul Drain: a stream of hungry souls that heal him when they hit
+    e.subT -= dt; e.castT = CAST_TIME;
+    if (e.subT <= 0) {
+      e.subT = phase === 3 ? 0.13 : 0.18;
+      const a = Math.atan2(dy, dx) + (Math.random() - 0.5) * 0.5;
+      addProj({x:ecx(e), y:ecy(e) - 4, vx:Math.cos(a) * 230, vy:Math.sin(a) * 230, type:'soulwisp', dmg:e.dmg * 0.4, owner:'e', life:2.4, r:4, homing:true, turn:2.6, ghost:true, drain:true});
+    }
+    if (e.stT <= 0) { e.state = 'float'; e.stT = 2; }
+  } else if (e.state === 'plague') {
+    // Plague Bombs: rotten globs that burst into lingering poison clouds
+    if (!e.did && e.stT < 0.7) {
+      e.did = true;
+      const n = phase === 1 ? 3 : 4, fl = 0.9, G2 = 520;
+      for (let i = 0; i < n; i++) {
+        const tx = ecx(p) + (i - (n - 1) / 2) * 70 + (Math.random() - 0.5) * 30;
+        addProj({x:ecx(e), y:ecy(e), vx:(tx - ecx(e)) / fl, vy:(ecy(p) - ecy(e)) / fl - 0.5 * G2 * fl, grav:G2, type:'plaguebomb', dmg:e.dmg * 0.6, owner:'e', life:3, r:5, cloud:true});
+      }
+    }
+    if (e.stT <= 0) { e.state = 'float'; e.stT = 2.2; }
+  } else if (e.state === 'nova') {
+    // Death Nova: rings of skulls with a gap to slip through
+    e.subT -= adt;
+    if (e.subT <= 0 && e.shotCount < (phase === 1 ? 1 : 2) && e.stT < 1.1) {
+      e.subT = 0.45; e.shotCount++;
+      const n = phase === 3 ? 22 : 16, gap = Math.atan2(dy, dx) + (Math.random() - 0.5) * 1.5 + e.shotCount * 0.6;
+      for (let i = 0; i < n; i++) {
+        const a = i / n * Math.PI * 2, d = Math.abs((((a - gap) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+        if (d < 0.42) continue; // the gap
+        addProj({x:ecx(e), y:ecy(e), vx:Math.cos(a) * 185, vy:Math.sin(a) * 185, type:'skullbolt', dmg:e.dmg * 0.75, owner:'e', life:3, r:4, ghost:true});
+      }
+      effects.push({type:'ring', x:ecx(e), y:ecy(e), r:40, life:0.3, max:0.3, col:'#8ce858'});
+    }
+    if (e.stT <= 0) { e.state = 'float'; e.stT = 2.2; }
+  } else if (e.state === 'teleport') {
+    // vanishes and reappears behind a knight, then fires point-blank spears
+    if (!e.did && e.stT < 0.7) {
+      e.did = true;
+      addParticles(ecx(e), ecy(e), '#2a3a20', 30, 160, 0.7); addParticles(ecx(e), ecy(e), '#8ce858', 16, 120, 0.5);
+      const side = -Math.sign(p.vx || p.facing || 1);
+      teleportClear(e, () => ecx(p) + side * (110 + Math.random() * 40), () => ecy(p) - 60 - Math.random() * 30);
+      e.vx = e.vy = 0;
+      addParticles(ecx(e), ecy(e), '#8ce858', 24, 140, 0.6);
+    }
+    if (e.did && e.stT < 0.25 && !e.fired) { e.fired = true; spears(5, 0.13, 300, Math.atan2(ecy(p) - ecy(e), ecx(p) - ecx(e))); }
+    if (e.stT <= 0) { e.state = 'float'; e.stT = 2; }
+  } else if (e.state === 'detonate') {
+    // Corpse Explosion: his zombies freeze, swell and burst
+    if (!e.did) {
+      e.did = true;
+      for (const m of enemies.filter(m => m.summoner === e && !m.dead && (m.type === 'zombie' || m.type === 'zombie_brute'))) {
+        m.fuse = 1.3 + Math.random() * 0.3;
+        addProj({x:ecx(m), y:m.y + m.h - 3, vx:0, vy:0, type:'fusemark', dmg:0, harmless:true, owner:'e', life:m.fuse, r:m.type === 'zombie_brute' ? 80 : 56, ghost:true, pierce:true});
+      }
+      toast('The corpses are swelling... get away from them!', 'red');
+    }
+    if (e.stT <= 0) { e.state = 'float'; e.stT = 2; }
+  }
+  if (frozen) { e.vx *= 0.5; e.vy *= 0.5; }
+  // float freely, but never drift into rock
+  const nx = e.x + e.vx * dt, ny = e.y + e.vy * dt;
+  if (!rectSolid(nx, e.y, e.w, e.h)) e.x = nx; else e.vx = 0;
+  if (!rectSolid(e.x, ny, e.w, e.h)) e.y = ny; else e.vy = 0;
+  e.facing = Math.sign(dx) || e.facing;
+}
 function bossContact(e) {
   if (e.atkCd > 0 || e.stunT > 0 || e.state === 'admire') return;
   for (const t of allTargets()) if (overlap(e, t)) { damageTarget(t, e.dmg * 0.75, ecx(e)); e.atkCd = 1.1; break; }
@@ -1115,7 +1320,7 @@ function teleportClear(e, rx, ry) {
     if (!rectSolid(x, y, e.w, e.h)) { e.x = x; e.y = y; return; }
   }
 }
-function bossGroundY(e) { return surf[BOSSES[e.bid].x] * TILE; }
+function bossGroundY(e) { return e.groundY != null ? e.groundY : surf[BOSSES[e.bid].x] * TILE; }
 function updateBoss(e, dt) {
   const b = BOSSES[e.bid];
   const p = nearestTarget(ecx(e), ecy(e));
@@ -1394,6 +1599,7 @@ function updateBoss(e, dt) {
       e.facing = Math.sign(dx) || e.facing;
       break;
     }
+    case 'necromancer': necromancerAI(e, b, p, dx, dy, dt, adt, frozen); break;
     case 'gold_dragon': {
       const C = CASTLE, minX = (C.x0 + 3) * TILE, maxX = (C.x1 - 2) * TILE, minY = (C.top + 3) * TILE, floorY = C.floor * TILE;
       e.vulnerable = false; e.breathing = false;
