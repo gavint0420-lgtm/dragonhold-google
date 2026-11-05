@@ -130,16 +130,13 @@ function gainXp(n) {
   }
   if (p.level >= 60) p.xp = 0;
 }
-// No one-shots on any difficulty: a single hit can never take more than 40% of your max health,
-// so from full health it always takes at least 3 hits to fall. (Every kind of damage comes through here.)
-const MAX_HIT_SHARE = 0.4;
 function hurtPlayer(amt, srcX, opt = {}) {
   const p = player;
   if (p.dead || p.iframes > 0 || p.dashT > 0) return;
   const red = p.def / (p.def + 50);
   let d = amt * (1 - red);
   if (opt.fire && p.armorId === 'armor_dragon') d *= 0.6;
-  d = Math.max(1, Math.min(Math.round(d), Math.floor(p.maxHp * MAX_HIT_SHARE)));
+  d = Math.max(1, Math.round(d));
   p.hp -= d; p.iframes = 0.65; p.lastHurt = G.time;
   if (!opt.noKb) { p.vx = Math.sign(ecx(p) - srcX || 1) * 230; p.vy = -190; }
   addFloater(ecx(p), p.y, d, '#ff5a5a');
