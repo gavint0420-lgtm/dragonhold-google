@@ -1,0 +1,385 @@
+<meta charset="utf-8">
+<title>Dragonhold</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@500;700&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: full-screen canvas game with a stone-and-gold HUD floating over it. Single dark look by choice. */
+:root {
+  --ink: #120e16;          /* deepest panel shade */
+  --stone: #241e2b;        /* panel fill */
+  --stone-2: #31293a;      /* raised rows */
+  --edge: #5a4a3a;         /* bronze rim */
+  --gold: #e8b84a;         /* accent: gold, the dragon's obsession */
+  --text: #efe6d6;
+  --muted: #b3a690;
+  --hp: #d23b3b; --mp: #3b6ee0; --xp: #e8b84a;
+  --good: #7bd34a; --bad: #ff7a6a;
+  --display: 'Grenze Gotisch', 'Palatino Linotype', Georgia, serif;
+  --body: 'Alegreya Sans', 'Segoe UI', system-ui, sans-serif;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; overflow: hidden; background: #0b0710; color: var(--text); font-family: var(--body); font-size: 15px; }
+canvas#game { position: fixed; inset: 0; display: block; image-rendering: pixelated; cursor: crosshair; }
+button { font-family: var(--body); }
+.btn { background: var(--stone-2); color: var(--text); border: 1px solid var(--edge); border-radius: 4px; padding: 8px 14px; font-size: 15px; cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--gold); color: #fff; }
+.btn:focus-visible, .craft-row:focus-visible, .slot:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.btn.primary { background: linear-gradient(#8a6a2a, #5e4518); border-color: var(--gold); color: #fff8e0; font-weight: 700; }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.wide { width: 100%; text-align: left; }
+kbd { display: inline-block; min-width: 18px; padding: 1px 5px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 3px; background: var(--ink); font: 600 12px var(--body); text-align: center; }
+
+/* ----- Title ----- */
+#title { position: fixed; inset: 0; display: grid; place-items: safe center; overflow-y: auto; padding-block: 16px; box-sizing: border-box; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.title-card { text-align: center; max-width: 520px; display: grid; gap: 14px; justify-items: center; }
+.title-card h1 { font-family: var(--display); font-weight: 700; font-size: clamp(56px, 12vw, 108px); line-height: 0.9; margin: 0; color: var(--gold); text-shadow: 0 3px 0 #5e3a10, 0 0 40px rgba(232,184,74,0.35); letter-spacing: 1px; }
+.title-card .tag { font-size: 18px; color: var(--muted); margin: 0; text-wrap: balance; }
+.title-btns { display: grid; gap: 8px; width: min(280px, 100%); margin-top: 8px; }
+.title-btns .btn { padding: 11px; font-size: 17px; }
+a.btn { display: block; text-align: center; text-decoration: none; box-sizing: border-box; }
+#saveInfo, #titleMsg { font-size: 13px; color: var(--muted); min-height: 1em; }
+#titleHelp { background: rgba(18,14,22,0.92); border: 1px solid var(--edge); border-radius: 6px; padding: 12px 16px; text-align: left; max-width: 480px; }
+.phone-note { display: none; font-size: 13px; color: var(--bad); }
+@media (max-width: 700px), (pointer: coarse) { .phone-note { display: block; } }
+
+/* ----- HUD ----- */
+#hud { position: fixed; inset: 0; pointer-events: none; }
+#hud > * { pointer-events: auto; }
+.bars { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); left: max(12px, env(safe-area-inset-left, 0px)); width: 260px; display: grid; gap: 5px; pointer-events: none; }
+.bar { position: relative; height: 18px; background: rgba(10,8,14,0.8); border: 1px solid var(--edge); border-radius: 3px; overflow: hidden; }
+.bar.thin { height: 9px; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; transition: width 0.15s; }
+#hpFill { background: linear-gradient(#ff6a6a, var(--hp)); }
+#mpFill { background: linear-gradient(#7aa0ff, var(--mp)); }
+#xpFill { background: linear-gradient(#ffe08a, var(--xp)); }
+.bar span { position: relative; display: block; font-size: 12px; font-weight: 700; line-height: 18px; padding-left: 7px; text-shadow: 0 1px 2px #000; font-variant-numeric: tabular-nums; }
+.bar-meta { display: flex; justify-content: space-between; font-size: 13px; text-shadow: 0 1px 2px #000; font-variant-numeric: tabular-nums; }
+#coinText { color: var(--gold); font-weight: 700; }
+#questTrack { margin-top: 6px; background: rgba(10,8,14,0.65); border-left: 3px solid var(--gold); padding: 6px 9px; border-radius: 0 4px 4px 0; font-size: 13px; text-shadow: 0 1px 2px #000; }
+#questTrack:empty { display: none; }
+.qt-title { font-family: var(--display); font-size: 17px; color: var(--gold); }
+.qt-side { color: var(--muted); margin-top: 3px; font-size: 12px; }
+.map-box { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); display: grid; gap: 4px; justify-items: end; pointer-events: none; }
+#minimap { width: 220px; height: 128px; border: 1px solid var(--edge); border-radius: 3px; image-rendering: pixelated; background: #000; }
+.map-meta { font-size: 13px; text-shadow: 0 1px 2px #000; text-align: right; }
+#biomeText { font-family: var(--display); font-size: 18px; color: var(--gold); }
+#bossBar { position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: min(520px, 50vw); text-align: center; pointer-events: none; }
+#bossName { font-family: var(--display); font-size: 22px; color: #ffd0d0; text-shadow: 0 2px 3px #000; }
+#bossBar .bar { height: 14px; border-color: #8a2a2a; }
+#bossFill { background: linear-gradient(#ff5a8a, #a0103a); }
+.hotbar-wrap { position: absolute; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); display: grid; justify-items: center; gap: 4px; }
+#heldName { font-size: 14px; font-weight: 700; text-shadow: 0 1px 3px #000; min-height: 18px; pointer-events: none; }
+#hotbar { display: flex; gap: 4px; }
+@media (max-width: 620px) { #hotbar .slot { width: 34px; height: 34px; } #hotbar .slot img { width: 24px; height: 24px; } }
+.slot { position: relative; width: 46px; height: 46px; background: rgba(18,14,22,0.85); border: 2px solid var(--edge); border-radius: 4px; display: grid; place-items: center; cursor: pointer; user-select: none; }
+.slot img { width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; }
+.slot .cnt { position: absolute; right: 3px; bottom: 1px; font-size: 12px; font-weight: 700; text-shadow: 0 1px 2px #000, 0 0 2px #000; font-variant-numeric: tabular-nums; }
+.slot .key { position: absolute; left: 3px; top: 0; font-size: 10px; color: var(--muted); }
+.slot.sel { border-color: var(--gold); box-shadow: 0 0 10px rgba(232,184,74,0.5); }
+.slot.rare { background: radial-gradient(circle, rgba(232,184,74,0.28), rgba(18,14,22,0.9) 70%); }
+.slot .ph { font-size: 11px; color: var(--muted); }
+#toasts { position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); bottom: calc(80px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 4px; max-width: min(420px, 60vw); pointer-events: none; }
+.toast { background: rgba(18,14,22,0.88); border-left: 3px solid var(--muted); padding: 6px 10px; border-radius: 0 4px 4px 0; font-size: 14px; transition: opacity 0.4s, transform 0.4s; }
+.toast.gold { border-color: var(--gold); color: #ffe7a8; }
+.toast.loot { border-color: var(--good); }
+.toast.blue { border-color: #5fd0ff; }
+.toast.red { border-color: var(--bad); color: #ffd0c8; }
+.toast.out { opacity: 0; transform: translateX(-10px); }
+#banner { position: absolute; top: 28%; left: 0; right: 0; text-align: center; pointer-events: none; }
+#bannerTitle { font-family: var(--display); font-size: clamp(40px, 7vw, 76px); color: var(--gold); text-shadow: 0 4px 0 #4a2a08, 0 0 30px rgba(0,0,0,0.8); }
+#bannerSub { font-size: 18px; text-shadow: 0 2px 4px #000; }
+#banner.show { animation: banner 4.5s ease forwards; }
+@keyframes banner { 0% { opacity: 0; transform: scale(0.92); } 10%, 80% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+#death { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 8px; text-align: center; background: rgba(40,0,0,0.5); }
+#death h2 { font-family: var(--display); font-size: 64px; margin: 0; color: #ff9a8a; }
+.death-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
+#roomTag { position: absolute; top: calc(170px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); max-width: 240px; background: rgba(10,8,14,0.7); border-right: 3px solid #5fd0ff; padding: 5px 9px; border-radius: 4px 0 0 4px; font-size: 12px; text-align: right; pointer-events: none; }
+#roomTag b { color: #9fe0ff; }
+.coop-box { display: grid; gap: 8px; background: rgba(18,14,22,0.92); border: 1px solid var(--edge); border-radius: 6px; padding: 14px 16px; text-align: left; width: min(360px, 100%); box-sizing: border-box; }
+.coop-box label { font-size: 13px; color: var(--muted); display: grid; gap: 3px; }
+.coop-box input { background: var(--ink); color: var(--text); border: 1px solid var(--edge); border-radius: 4px; padding: 7px 9px; font: 15px var(--body); }
+.coop-row { display: flex; gap: 8px; align-items: end; }
+.diff-head { font-family: var(--display); font-size: 20px; color: var(--gold); }
+.diff-btn { display: grid; gap: 2px; text-align: left; padding: 9px 12px; }
+.diff-btn b { font-size: 16px; }
+.diff-btn small { font-size: 12px; font-weight: 400; opacity: 0.85; }
+#updateBar { position: fixed; top: env(safe-area-inset-top, 0px); left: 50%; transform: translateX(-50%); z-index: 90; margin-top: 8px; display: flex; gap: 10px; align-items: center;
+  background: rgba(18,14,22,0.95); border: 1px solid var(--gold); border-radius: 6px; padding: 8px 12px; font-size: 14px; max-width: calc(100vw - 32px); box-sizing: border-box; }
+#updateBar .btn { padding: 5px 10px; font-size: 14px; }
+#keysList { display: grid; gap: 4px; max-height: 55vh; overflow-y: auto; margin-bottom: 10px; }
+.key-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px 110px; gap: 6px; align-items: center; }
+.key-row .key-name { font-size: 14px; }
+.key-btn { padding: 5px 6px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.key-btn.listening { border-color: var(--gold); color: var(--gold); }
+.boss-log { display: grid; gap: 4px; margin: 8px 0; }
+.boss-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; column-gap: 8px; align-items: baseline; padding: 5px 8px; border-radius: 4px; background: rgba(255,255,255,0.04); }
+.boss-row .bl-where { grid-column: 2 / 4; font-size: 12px; color: var(--muted); }
+.boss-row .bl-lvl { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.boss-row.done { opacity: 0.55; } .boss-row.done .bl-name { text-decoration: line-through; }
+.boss-row.next { border: 1px solid var(--gold); } .boss-row.next .bl-mark, .boss-row.next .bl-name { color: var(--gold); }
+#spellCd { font-size: 12px; color: var(--muted); text-align: center; text-shadow: 0 1px 2px #000; margin-bottom: 2px; }
+#spellCd.ready { color: #d9b8ff; font-weight: 700; }
+.coop-sec { display: grid; gap: 7px; padding-top: 10px; border-top: 1px solid var(--edge); }
+.sub-head { font-size: 13px; color: var(--muted); }
+.sub-note { font-size: 11px; opacity: 0.8; }
+.seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.seg.seg2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.seg-btn { display: grid; gap: 2px; padding: 7px 6px; text-align: center; }
+.seg-btn small { font-size: 11px; font-weight: 400; opacity: 0.8; line-height: 1.2; }
+.seg-btn[aria-checked="true"] { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); color: var(--gold); }
+.seg-btn:disabled { opacity: 0.4; cursor: default; }
+.wpn-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.wpn-btn { display: grid; gap: 2px; padding: 8px 6px; text-align: center; }
+.wpn-btn b { font-size: 15px; }
+.wpn-btn small { font-size: 11px; font-weight: 400; opacity: 0.8; line-height: 1.2; }
+.wpn-btn[aria-checked="true"] { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); color: var(--gold); }
+.coop-row label { flex: 1; }
+#coopStatus { font-size: 13px; color: var(--muted); min-height: 1em; }
+#coopStatus.bad { color: var(--bad); }
+
+/* ----- Panels ----- */
+.panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: linear-gradient(var(--stone), var(--ink)); border: 2px solid var(--edge); border-radius: 8px; box-shadow: 0 0 0 1px #000, 0 20px 60px rgba(0,0,0,0.7); padding: 18px 20px; max-height: calc(100% - 40px); overflow: auto; width: min(560px, calc(100% - 32px)); }
+.panel h2 { font-family: var(--display); font-weight: 700; color: var(--gold); margin: 0 0 10px; font-size: 28px; }
+.panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+.panel-head h2 { margin: 0; }
+#dlgSpeaker { font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
+#dlgTitle { font-family: var(--display); font-size: 28px; color: var(--gold); margin: 2px 0 6px; text-wrap: balance; }
+#dlgText { line-height: 1.5; max-width: 62ch; }
+#dlgText p { margin: 0 0 10px; }
+.dlg-obj { color: var(--gold); font-weight: 700; }
+.dlg-warn { color: var(--bad); font-weight: 700; }
+.dlg-small { color: var(--muted); font-size: 13px; }
+#dlgButtons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.controls { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; align-items: center; font-size: 14px; }
+#invPanel { width: min(900px, calc(100% - 32px)); }
+.inv-layout { display: grid; grid-template-columns: auto 1fr; gap: 20px; }
+@media (max-width: 760px) { .inv-layout { grid-template-columns: 1fr; } }
+#invGrid { display: grid; grid-template-columns: repeat(6, 46px); gap: 4px; }
+.inv-side { display: grid; gap: 10px; align-content: start; }
+.armor-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+#statsBox { font-size: 13px; color: var(--muted); line-height: 1.5; }
+#statsBox b { color: var(--text); }
+.hint { font-size: 12px; color: var(--muted); }
+#craftList { display: grid; gap: 3px; max-height: 60vh; overflow: auto; padding-right: 4px; min-width: 0; }
+.craft-head { font-family: var(--display); font-size: 19px; color: var(--gold); margin-top: 8px; display: flex; gap: 8px; align-items: baseline; }
+.craft-head span { font-family: var(--body); font-size: 12px; }
+.craft-head .ok { color: var(--good); } .craft-head .no { color: var(--muted); }
+.craft-row { display: grid; grid-template-columns: 32px 1fr; gap: 8px; align-items: center; text-align: left; background: var(--stone-2); border: 1px solid transparent; border-radius: 4px; padding: 4px 8px; color: var(--muted); cursor: pointer; font-size: 13px; }
+.craft-row img { width: 32px; height: 32px; image-rendering: pixelated; }
+.craft-row.ok { color: var(--text); border-color: #4a6a2a; }
+.craft-row.ok:hover { border-color: var(--good); }
+.craft-row:disabled { cursor: default; opacity: 0.7; }
+.cr-name { font-weight: 700; }
+.cr-in .have { color: var(--good); } .cr-in .need { color: var(--bad); }
+.shop-row { display: grid; grid-template-columns: 32px 1fr auto auto; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid #3a3040; }
+.shop-row img { width: 32px; height: 32px; image-rendering: pixelated; }
+.shop-name { min-width: 0; }
+.shop-name small { display: block; color: var(--muted); font-size: 12px; }
+.shop-price { color: var(--gold); font-weight: 700; font-variant-numeric: tabular-nums; }
+.shop-row.locked { opacity: 0.55; }
+#wayList { display: grid; gap: 6px; }
+#mapPanel { width: auto; max-width: calc(100% - 24px); }
+#bigMap { display: block; image-rendering: pixelated; border: 1px solid var(--edge); max-width: 100%; }
+.pause-btns { display: grid; gap: 8px; }
+textarea { width: 100%; box-sizing: border-box; height: 90px; background: var(--ink); color: var(--text); border: 1px solid var(--edge); border-radius: 4px; font: 12px ui-monospace, monospace; }
+#tooltip { position: fixed; z-index: 50; width: 250px; background: rgba(12,9,16,0.97); border: 1px solid var(--edge); border-radius: 5px; padding: 8px 10px; font-size: 13px; pointer-events: none; }
+.tt-name { font-weight: 700; font-size: 15px; }
+.tt-name.rare { color: var(--gold); }
+.tt-name.boss { color: #ff9ad8; }
+.tt-sub { color: var(--muted); font-size: 12px; }
+.tt-stat { margin-top: 4px; }
+.tt-fx { margin-top: 4px; color: #b8e0ff; }
+.tt-desc { margin-top: 4px; color: var(--muted); }
+#heldItem { position: fixed; z-index: 60; pointer-events: none; }
+#heldItem img { width: 32px; height: 32px; image-rendering: pixelated; }
+#heldItem .cnt { font-size: 12px; font-weight: 700; text-shadow: 0 1px 2px #000; }
+#loading { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8,6,12,0.85); font-family: var(--display); font-size: 34px; color: var(--gold); z-index: 80; }
+@media (prefers-reduced-motion: reduce) { #banner.show { animation: none; } .toast { transition: none; } }
+</style>
+
+<canvas id="game"></canvas>
+<div id="updateBar" hidden role="status"><span id="updateText">A new version of Dragonhold is ready.</span> <button class="btn primary" id="btnUpdate">Save and update</button></div>
+
+<div id="title">
+  <div class="title-card">
+    <h1>Dragonhold</h1>
+    <p class="tag">Aurex the Gilded Wyrm has stolen Princess Elowen. Break the four seals, forge your arms, and storm the castle.</p>
+    <div class="title-btns">
+      <button class="btn primary" id="btnContinue" hidden>Continue</button>
+      <button class="btn" id="btnNew">New game</button>
+      <button class="btn" id="btnCoop">Play together</button>
+      <button class="btn" id="btnTitleHelp">Controls</button>
+      <a class="btn" id="btnDownload" href="download/Dragonhold.zip" download="Dragonhold.zip" hidden>Download the game</a>
+    </div>
+    <div class="coop-box diff-box" id="diffBox" hidden>
+      <div class="diff-head">Starting weapon</div>
+      <div class="wpn-pick" role="radiogroup" aria-label="Starting weapon">
+        <button class="btn wpn-btn" data-wpn="sword" role="radio"><b>Sword</b><small>Balanced reach and damage</small></button>
+        <button class="btn wpn-btn" data-wpn="dagger" role="radio"><b>Dagger</b><small>Fast stabs, 15% crits</small></button>
+        <button class="btn wpn-btn" data-wpn="wand" role="radio"><b>Wand</b><small>Ranged sparks that slow, uses mana</small></button>
+      </div>
+      <div class="diff-head">Choose your difficulty</div>
+      <button class="btn diff-btn" data-diff="easy"><b>Easy</b><small></small></button>
+      <button class="btn diff-btn primary" data-diff="normal"><b>Normal</b><small></small></button>
+      <button class="btn diff-btn" data-diff="hard"><b>Hard</b><small></small></button>
+      <div class="hint">You can change the difficulty later from the pause menu (Esc), and swap your starting weapon by talking to Sir Aldric in the village.</div>
+    </div>
+    <div class="coop-box" id="coopBox" hidden>
+      <label for="coopName">Your knight's name<input id="coopName" maxlength="16" placeholder="Knight" autocomplete="off"></label>
+      <div class="coop-sec">
+        <div class="diff-head">Host a game</div>
+        <div class="sub-head">World</div>
+        <div class="seg seg2" role="radiogroup" aria-label="World to host">
+          <button class="btn seg-btn" data-world="continue" role="radio" id="worldContinue"><b>Saved world</b><small id="worldSaveInfo">Keep playing your save</small></button>
+          <button class="btn seg-btn" data-world="new" role="radio"><b>New world</b><small>Start a fresh adventure</small></button>
+        </div>
+        <div class="sub-head">Difficulty <span class="sub-note">applies to everyone in the game</span></div>
+        <div class="seg" role="radiogroup" aria-label="Difficulty">
+          <button class="btn seg-btn" data-hostdiff="easy" role="radio"><b>Easy</b></button>
+          <button class="btn seg-btn" data-hostdiff="normal" role="radio"><b>Normal</b></button>
+          <button class="btn seg-btn" data-hostdiff="hard" role="radio"><b>Hard</b></button>
+        </div>
+        <div class="hint" id="hostDiffDesc"></div>
+        <button class="btn primary" id="btnHost">Host a game</button>
+        <div class="hint">You get a room code to share. Up to 3 players.</div>
+      </div>
+      <div class="coop-sec">
+        <div class="diff-head">Join a friend</div>
+        <div class="coop-row">
+          <label for="coopCode">Room code<input id="coopCode" maxlength="8" placeholder="ABCD" autocomplete="off" style="text-transform:uppercase"></label>
+          <button class="btn primary" id="btnJoin">Join</button>
+        </div>
+        <div class="hint">You bring your own co-op knight, items and level, saved on this computer.</div>
+      </div>
+      <div class="coop-sec">
+        <div class="sub-head">Starting weapon <span class="sub-note">for a new world or a brand-new co-op knight</span></div>
+        <div class="wpn-pick" role="radiogroup" aria-label="Starting weapon">
+          <button class="btn wpn-btn" data-wpn="sword" role="radio"><b>Sword</b><small>Balanced</small></button>
+          <button class="btn wpn-btn" data-wpn="dagger" role="radio"><b>Dagger</b><small>Fast, 15% crits</small></button>
+          <button class="btn wpn-btn" data-wpn="wand" role="radio"><b>Wand</b><small>Ranged, slows</small></button>
+        </div>
+        <div class="hint">Already have a knight? Talk to Sir Aldric in the village to swap your weapon.</div>
+      </div>
+      <div id="coopStatus" role="status"></div>
+      <div class="hint" id="coopNote" hidden>Online co-op needs the Dragonhold server. The host runs <kbd>node server/server.js</kbd> in the dragonhold folder, then everyone opens the link it prints.</div>
+    </div>
+    <div id="saveInfo"></div>
+    <div id="titleMsg"></div>
+    <div class="phone-note">Dragonhold needs a keyboard and mouse.</div>
+    <div id="titleHelp" hidden></div>
+  </div>
+</div>
+
+<div id="hud" hidden>
+  <div class="bars">
+    <div class="bar"><div class="fill" id="hpFill"></div><span id="hpText"></span></div>
+    <div class="bar"><div class="fill" id="mpFill"></div><span id="mpText"></span></div>
+    <div class="bar thin"><div class="fill" id="xpFill"></div></div>
+    <div class="bar-meta"><span id="lvlText"></span><span id="coinText"></span></div>
+    <div id="questTrack"></div>
+  </div>
+  <div class="map-box">
+    <canvas id="minimap" width="220" height="128"></canvas>
+    <div class="map-meta"><div id="biomeText"></div><div id="timeText"></div></div>
+  </div>
+  <div id="bossBar" hidden><div id="bossName"></div><div class="bar"><div class="fill" id="bossFill"></div></div></div>
+  <div class="hotbar-wrap"><div id="spellCd" hidden></div><div id="heldName"></div><div id="hotbar"></div></div>
+  <div id="toasts"></div>
+  <div id="banner" hidden><div id="bannerTitle"></div><div id="bannerSub"></div></div>
+  <div id="death" hidden><h2>You have fallen</h2><div id="deathSub"></div>
+    <div class="death-btns"><button class="btn primary" id="btnRespawn">Respawn</button><button class="btn" id="btnRespawnVillage">Respawn in the village</button></div>
+  </div>
+  <div id="roomTag" hidden></div>
+</div>
+
+<div class="panel" id="dialog" hidden role="dialog" aria-modal="true">
+  <div id="dlgSpeaker"></div>
+  <div id="dlgTitle"></div>
+  <div id="dlgText"></div>
+  <div id="dlgButtons"></div>
+</div>
+
+<div class="panel" id="invPanel" hidden role="dialog" aria-label="Inventory">
+  <div class="panel-head"><h2>Inventory</h2><button class="btn" id="btnInvClose">Close (E)</button></div>
+  <div class="inv-layout">
+    <div class="inv-side">
+      <div id="invGrid"></div>
+      <div class="armor-row"><div class="slot" id="armorSlot"></div><div>Armor slot. Right-click armor to equip it.</div></div>
+      <div id="statsBox"></div>
+      <div class="hint">Click to pick up and place items. Shift-click moves items between the hotbar and your bag. Right-click a potion to drink it.</div>
+    </div>
+    <div style="min-width:0">
+      <h2 style="font-size:22px;margin:0">Crafting</h2>
+      <div class="hint">Stand near a station to use its recipes.</div>
+      <div id="craftList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="shopPanel" hidden role="dialog" aria-label="Shop">
+  <div class="panel-head"><h2 id="shopTitle">Greta's Wares</h2><button class="btn" id="btnShopClose">Close</button></div>
+  <div id="shopList"></div>
+</div>
+
+<div class="panel" id="keysPanel" hidden role="dialog" aria-label="Keybindings">
+  <div class="panel-head"><h2>Keybindings</h2><button class="btn" id="btnKeysClose">Done</button></div>
+  <p class="hint" id="keysMsg" role="status"></p>
+  <div id="keysList"></div>
+  <p class="hint">Esc opens the menu and 1–9, 0 pick hotbar slots. Those can't be changed. Left click uses your item, right click talks, opens and casts Arcane Burst.</p>
+  <button class="btn" id="btnKeysReset">Reset to defaults</button>
+</div>
+
+<div class="panel" id="wayPanel" hidden role="dialog" aria-label="Waystones">
+  <div class="panel-head"><h2>Waystones</h2><button class="btn" id="btnWayClose">Close</button></div>
+  <p class="hint">Choose where to travel. Touch new waystones to add them here.</p>
+  <div id="wayList"></div>
+</div>
+
+<div class="panel" id="mapPanel" hidden role="dialog" aria-label="World map">
+  <div class="panel-head"><h2>The Realm</h2><button class="btn" id="btnMapClose">Close (M)</button></div>
+  <canvas id="bigMap"></canvas>
+  <p class="hint">White: you · Blue: waystones · Red: bosses · Purple: rune-seals that block the road.</p>
+</div>
+
+<div class="panel" id="pausePanel" hidden role="dialog" aria-label="Menu">
+  <h2>Paused</h2>
+  <div class="pause-btns">
+    <button class="btn primary" id="btnResume">Resume</button>
+    <button class="btn" id="btnSave">Save game</button>
+    <button class="btn" id="btnDiff">Difficulty: Normal</button>
+    <button class="btn" id="btnAim">Aim: Cursor</button>
+    <button class="btn" id="btnKeys">Keybindings</button>
+    <button class="btn" id="btnSetHome">Set spawn point here (B)</button>
+    <button class="btn" id="btnGoHome">Return home (H)</button>
+    <button class="btn" id="btnControls">Controls</button>
+    <button class="btn" id="btnExport">Export save</button>
+    <button class="btn" id="btnImport">Import save</button>
+    <button class="btn" id="btnQuit">Save and quit to title</button>
+  </div>
+  <div id="exportBox" hidden>
+    <p class="hint">Copy this text somewhere safe. Paste it into Import save to restore your game in any browser.</p>
+    <textarea id="exportText" readonly></textarea>
+    <button class="btn" id="btnCopy">Copy</button>
+  </div>
+  <div id="importBox" hidden>
+    <p class="hint">Paste your exported save text, then load it. This replaces the current game.</p>
+    <textarea id="importText"></textarea>
+    <button class="btn primary" id="btnDoImport">Load save</button>
+  </div>
+</div>
+
+<div id="tooltip" hidden></div>
+<div id="heldItem" hidden></div>
+<div id="loading" hidden>Forging the realm...</div>
+
+<script src="js/data.js"></script>
+<script src="js/world.js"></script>
+<script src="js/render.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/net.js"></script>
+<script src="js/title.js"></script>
+<script src="js/main.js"></script>
+<script src="js/dev.js"></script>

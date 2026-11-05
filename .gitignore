@@ -1,0 +1,10 @@
+# private: unlocks the owner's developer options, never share it
+server/dev.key
+
+# built automatically by the launcher every time it starts
+download/
+
+# editor and system clutter
+.DS_Store
+Thumbs.db
+*.log
