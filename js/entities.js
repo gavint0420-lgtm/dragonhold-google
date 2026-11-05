@@ -977,12 +977,11 @@ function lobbyPlayerCount() {
 // - Lessen base health to 0.55x base (down from 0.8x)
 // - Keep base damage reduction at 0.7x base (30% less damage)
 // - Scales accordingly with player count in lobby:
-//   Health scales +40% per additional player (1p = 0.55x, 2p = 0.77x, 3p = 0.99x)
-//   Damage scales +15% per additional player (1p = 0.7x, 2p = 0.805x, 3p = 0.91x)
+// Boss health and damage scaling (scaled for challenge and multiplayer lobbies)
 function bossScaling() {
   const p = lobbyPlayerCount();
-  const hpMult = 0.55 * (1 + (p - 1) * 0.40);
-  const dmgMult = 0.7 * (1 + (p - 1) * 0.15);
+  const hpMult = 0.95 * (1 + (p - 1) * 0.45);
+  const dmgMult = 1.15 * (1 + (p - 1) * 0.20);
   return { hp: hpMult, dmg: dmgMult, players: p };
 }
 
@@ -1087,33 +1086,64 @@ function updateBoss(e, dt) {
     case 'goblin_king': {
       if (e.state === 'intro' && e.stT <= 0) { e.state = 'chase'; e.stT = 3; }
       if (e.state === 'chase') {
-        e.vx = approach(e.vx, Math.sign(dx) * (rage ? 120 : 90), 600 * dt);
+        e.vx = approach(e.vx, Math.sign(dx) * (rage ? 130 : 95), 600 * dt);
         if (e.hitWall && e.onGround) e.vy = -420;
-        if (e.stT <= 0) { const r = Math.random(); e.state = r < 0.4 ? 'leap' : r < 0.75 ? 'throw' : 'summon'; e.stT = 1; e.did = false; }
+        if (e.stT <= 0) {
+          const r = Math.random();
+          e.state = r < 0.25 ? 'leap' : r < 0.48 ? 'throw' : r < 0.70 ? 'slam' : r < 0.88 ? 'flurry' : 'summon';
+          e.stT = e.state === 'slam' ? 1.0 : e.state === 'flurry' ? 1.4 : 1;
+          e.did = false;
+        }
       } else if (e.state === 'leap') {
-        if (!e.did && e.onGround) { e.vy = -520; e.vx = clamp(dx * 1.4, -360, 360); e.did = true; e.air = true; }
+        if (!e.did && e.onGround) { e.vy = -540; e.vx = clamp(dx * 1.4, -380, 380); e.did = true; e.air = true; }
         if (e.did && e.onGround && e.air && e.vy >= 0) {
           e.air = false;
-          for (const s of [-1, 1]) addProj({x:ecx(e) + s * 20, y:e.y + e.h - 6, vx:s * 260, vy:0, type:'shock', dmg:e.dmg * 0.8, owner:'e', life:1.1, r:7, pierce:true});
-          shake(6); e.state = 'chase'; e.stT = rage ? 2 : 3;
+          for (const s of [-1, 1]) addProj({x:ecx(e) + s * 20, y:e.y + e.h - 6, vx:s * 280, vy:0, type:'shock', dmg:e.dmg * 0.85, owner:'e', life:1.1, r:7, pierce:true});
+          shake(7); e.state = 'chase'; e.stT = rage ? 2 : 2.8;
         }
       } else if (e.state === 'throw') {
         e.vx = approach(e.vx, 0, 800 * dt);
         if (!e.did) {
           e.did = true;
-          for (let i = 0; i < (rage ? 5 : 3); i++) {
-            const vx = clamp(dx * (0.8 + i * 0.25), -420, 420) / 1.1;
-            addProj({x:ecx(e), y:e.y, vx, vy:-380 - i * 30, type:b.throwProj || 'bag', dmg:e.dmg * 0.9, owner:'e', life:3, r:5, grav:700});
+          for (let i = 0; i < (rage ? 6 : 4); i++) {
+            const vx = clamp(dx * (0.8 + i * 0.22), -440, 440) / 1.1;
+            addProj({x:ecx(e), y:e.y, vx, vy:-380 - i * 28, type:b.throwProj || 'bag', dmg:e.dmg * 0.9, owner:'e', life:3, r:5, grav:700});
           }
         }
-        if (e.stT <= 0) { e.state = 'chase'; e.stT = 2.5; }
+        if (e.stT <= 0) { e.state = 'chase'; e.stT = 2.4; }
+      } else if (e.state === 'slam') {
+        // Earth Tremor: pauses, bounds up slightly, crashes down releasing shockwaves & shards
+        e.vx = approach(e.vx, 0, 900 * dt);
+        if (!e.did && e.stT < 0.5) {
+          e.did = true; shake(8);
+          addParticles(ecx(e), e.y + e.h, '#d8b878', 24, 180, 0.7);
+          for (const s of [-2, -1, 1, 2]) {
+            addProj({x:ecx(e) + s * 16, y:e.y + e.h - 6, vx:s * 190, vy:0, type:'shock', dmg:e.dmg * 0.9, owner:'e', life:1.3, r:8, pierce:true});
+          }
+          for (let i = 0; i < 6; i++) {
+            const a = -Math.PI * 0.15 - (i / 5) * Math.PI * 0.7;
+            addProj({x:ecx(e), y:e.y + e.h - 10, vx:Math.cos(a) * 260, vy:Math.sin(a) * 260, type:'shard', dmg:e.dmg * 0.7, owner:'e', life:0.8, r:3, grav:600});
+          }
+        }
+        if (e.stT <= 0) { e.state = 'chase'; e.stT = rage ? 2 : 2.6; }
+      } else if (e.state === 'flurry') {
+        // Berserker Spin: charges forward with whirling weapon strikes
+        if (!e.did) { e.did = true; e.cdir = Math.sign(dx) || 1; }
+        e.vx = e.cdir * (rage ? 240 : 190);
+        if (Math.random() < dt * 15) {
+          effects.push({type:'ring', x:ecx(e), y:ecy(e), r:36, life:0.25, max:0.25, col:'#f5cc45'});
+          for (const t of allTargets()) {
+            if (overlap(e, t)) damageTarget(t, e.dmg * 0.55 * dt * 10, ecx(e));
+          }
+        }
+        if (e.hitWall || e.stT <= 0) { e.state = 'chase'; e.stT = rage ? 1.8 : 2.5; }
       } else if (e.state === 'summon') {
         if (!e.did) {
           e.did = true;
           const n = minionCount();
           for (let i = 0; i < Math.min(2, (b.minionMax || 4) - n); i++) summonMinion(e, b.minion || 'goblin', b.minionLvl || 10, e);
         }
-        if (e.stT <= 0) { e.state = 'chase'; e.stT = 3; }
+        if (e.stT <= 0) { e.state = 'chase'; e.stT = 2.8; }
       }
       if (frozen) e.vx = 0;
       e.vy = Math.min(e.vy + GRAV * dt, 800);
@@ -1126,27 +1156,60 @@ function updateBoss(e, dt) {
       if (e.state === 'intro' && e.stT <= 0) { e.state = 'float'; e.stT = 4; }
       if (e.state === 'float') {
         const tx = e.homeX + Math.sin(e.t * 0.6) * 200, ty = gy - 110 + Math.sin(e.t * 1.7) * 25;
-        e.vx = approach(e.vx, clamp((tx - ecx(e)) * 2, -140, 140), 400 * dt);
-        e.vy = approach(e.vy, clamp((ty - ecy(e)) * 2, -140, 140), 400 * dt);
+        e.vx = approach(e.vx, clamp((tx - ecx(e)) * 2, -150, 150), 400 * dt);
+        e.vy = approach(e.vy, clamp((ty - ecy(e)) * 2, -150, 150), 400 * dt);
         if (e.shootT <= 0) {
-          e.shootT = rage ? 1.0 : 1.4;
+          e.shootT = rage ? 0.9 : 1.3;
           const a = Math.atan2(dy, dx), n = rage ? 5 : 3;
-          for (let i = 0; i < n; i++) addProj({x:ecx(e), y:ecy(e), vx:Math.cos(a + (i - (n - 1) / 2) * 0.22) * 250, vy:Math.sin(a + (i - (n - 1) / 2) * 0.22) * 250, type:'hexbolt', dmg:e.dmg, owner:'e', life:3, r:4});
+          for (let i = 0; i < n; i++) addProj({x:ecx(e), y:ecy(e), vx:Math.cos(a + (i - (n - 1) / 2) * 0.22) * 260, vy:Math.sin(a + (i - (n - 1) / 2) * 0.22) * 260, type:'hexbolt', dmg:e.dmg, owner:'e', life:3, r:4});
         }
         if (e.summonT <= 0) {
-          e.summonT = 12;
+          e.summonT = 11;
           const n = minionCount();
           for (let i = 0; i < Math.min(2, (b.minionMax || 4) - n); i++) { const m = makeEnemy(b.minion || 'spider', e.homeX + (Math.random() - 0.5) * 300, gy - 40, b.minionLvl || 22); m.summoned = true; m.summoner = e; m.aggro = true; m.y = gy - m.h - 1; enemies.push(m); }
         }
-        if (e.stT <= 0) { e.state = 'teleport'; e.stT = 0.6; }
+        if (e.stT <= 0) {
+          const r = Math.random();
+          e.state = r < 0.35 ? 'teleport' : r < 0.68 ? 'spiral' : 'pillars';
+          e.stT = e.state === 'teleport' ? 0.6 : e.state === 'spiral' ? 1.4 : 1.5;
+          e.did = false; e.subT = 0;
+        }
       } else if (e.state === 'teleport') {
         e.vx = e.vy = 0;
         if (e.stT <= 0) {
           addParticles(ecx(e), ecy(e), '#b05be0', 30, 150, 0.6);
           teleportClear(e, () => e.homeX + (Math.random() - 0.5) * 380, () => gy - 100 - Math.random() * 60);
           addParticles(ecx(e), ecy(e), '#b05be0', 30, 150, 0.6);
-          e.state = 'float'; e.stT = rage ? 3 : 4.5; e.shootT = 0.5;
+          e.state = 'float'; e.stT = rage ? 3 : 4.5; e.shootT = 0.4;
         }
+      } else if (e.state === 'spiral') {
+        // Hex Spiral Nova: hovers and shoots a rotating spiral of hexbolts & thorns
+        e.vx *= 0.85; e.vy *= 0.85;
+        e.subT = (e.subT || 0) - dt;
+        if (e.subT <= 0) {
+          e.subT = rage ? 0.12 : 0.16;
+          e.angle = (e.angle || 0) + 0.55;
+          for (const s of [0, Math.PI]) {
+            const a = e.angle + s;
+            addProj({x:ecx(e), y:ecy(e), vx:Math.cos(a) * 230, vy:Math.sin(a) * 230, type:'hexbolt', dmg:e.dmg * 0.8, owner:'e', life:2.8, r:4});
+            addProj({x:ecx(e), y:ecy(e), vx:Math.cos(a + 0.3) * 200, vy:Math.sin(a + 0.3) * 200, type:'thorn', dmg:e.dmg * 0.7, owner:'e', life:2.5, r:3});
+          }
+        }
+        if (e.stT <= 0) { e.state = 'float'; e.stT = rage ? 2.5 : 3.5; }
+      } else if (e.state === 'pillars') {
+        // Shadow Geysers: summons 3 cursed thorn eruptions under target positions
+        e.vx *= 0.85; e.vy *= 0.85;
+        if (!e.did && e.stT < 0.9) {
+          e.did = true;
+          for (let i = -1; i <= 1; i++) {
+            const gx = ecx(p) + i * 70;
+            addParticles(gx, gy - 6, '#b05be0', 16, 80, 0.5);
+            addProj({x:gx, y:gy - 4, vx:0, vy:-360, type:'hexbolt', dmg:e.dmg * 1.1, owner:'e', life:1.6, r:6});
+            addProj({x:gx + (Math.random() - 0.5) * 20, y:gy - 4, vx:(Math.random() - 0.5) * 80, vy:-320, type:'thorn', dmg:e.dmg * 0.8, owner:'e', life:1.8, r:4});
+          }
+          shake(6);
+        }
+        if (e.stT <= 0) { e.state = 'float'; e.stT = rage ? 2.5 : 3.8; }
       }
       if (frozen) { e.vx *= 0.5; e.vy *= 0.5; }
       e.x += e.vx * dt; e.y += e.vy * dt;
@@ -1155,7 +1218,7 @@ function updateBoss(e, dt) {
     }
     case 'ogre_warlord': {
       if (e.state === 'intro' && e.stT <= 0) { e.state = 'chase'; e.stT = 2.5; }
-      const spd = (rage ? 105 : 80) * (b.fast ? 1.45 : 1);
+      const spd = (rage ? 110 : 85) * (b.fast ? 1.45 : 1);
       // bosses of this style with a pack call it in when badly hurt
       if (b.minion && rage && e.summonT <= 0) {
         e.summonT = 14;
@@ -1165,20 +1228,51 @@ function updateBoss(e, dt) {
       if (e.state === 'chase') {
         e.vx = approach(e.vx, Math.sign(dx) * spd, 500 * dt);
         if (e.hitWall && e.onGround) e.vy = -450;
-        if (e.stT <= 0) { e.state = Math.random() < 0.55 ? 'leap' : 'charge'; e.stT = 1.2; e.did = false; }
+        if (e.stT <= 0) {
+          const r = Math.random();
+          e.state = r < 0.28 ? 'leap' : r < 0.52 ? 'charge' : r < 0.76 ? 'boulder' : 'stomp';
+          e.stT = e.state === 'boulder' ? 1.2 : e.state === 'stomp' ? 1.8 : 1.2;
+          e.did = false; e.subT = 0; e.stompCount = 0;
+        }
       } else if (e.state === 'leap') {
-        if (!e.did && e.onGround) { e.vy = -600; e.vx = clamp(dx * 1.3, -380, 380); e.did = true; e.air = true; }
+        if (!e.did && e.onGround) { e.vy = -620; e.vx = clamp(dx * 1.3, -390, 390); e.did = true; e.air = true; }
         if (e.did && e.air && e.onGround && e.vy >= 0) {
           e.air = false; shake(9);
-          effects.push({type:'ring', x:ecx(e), y:e.y + e.h, r:140, life:0.4, max:0.4, col:'#d8b878'});
-          for (const t of allTargets()) if (t.onGround && Math.abs(ecx(t) - ecx(e)) < 140 && Math.abs(ecy(t) - ecy(e)) < 60) damageTarget(t, e.dmg * 1.2, ecx(e));
-          for (const s of [-1, 1]) addProj({x:ecx(e) + s * 24, y:e.y + e.h - 6, vx:s * 300, vy:0, type:'shock', dmg:e.dmg * 0.8, owner:'e', life:1.2, r:8, pierce:true});
-          e.state = 'chase'; e.stT = rage ? 1.8 : 2.6;
+          effects.push({type:'ring', x:ecx(e), y:e.y + e.h, r:150, life:0.4, max:0.4, col:'#d8b878'});
+          for (const t of allTargets()) if (t.onGround && Math.abs(ecx(t) - ecx(e)) < 150 && Math.abs(ecy(t) - ecy(e)) < 60) damageTarget(t, e.dmg * 1.2, ecx(e));
+          for (const s of [-1, 1]) addProj({x:ecx(e) + s * 24, y:e.y + e.h - 6, vx:s * 320, vy:0, type:'shock', dmg:e.dmg * 0.85, owner:'e', life:1.2, r:8, pierce:true});
+          e.state = 'chase'; e.stT = rage ? 1.8 : 2.5;
         }
       } else if (e.state === 'charge') {
         if (!e.did) { e.did = true; e.cdir = Math.sign(dx) || 1; e.stT = 1.1; }
         e.vx = e.cdir * spd * 3.4;
-        if (e.hitWall || e.stT <= 0) { e.state = 'chase'; e.stT = 2.5; if (e.hitWall) { e.stunT = 0.8; shake(5); } }
+        if (e.hitWall || e.stT <= 0) { e.state = 'chase'; e.stT = 2.4; if (e.hitWall) { e.stunT = 0.8; shake(5); } }
+      } else if (e.state === 'boulder') {
+        // Boulder Hurl: rips a giant boulder from the arena floor and launches it at the target
+        e.vx = approach(e.vx, 0, 700 * dt);
+        if (!e.did && e.stT < 0.6) {
+          e.did = true; shake(6);
+          const vx = clamp(dx * 1.2, -380, 380);
+          addProj({x:ecx(e), y:e.y - 12, vx, vy:-300, type:'boulder', dmg:e.dmg * 1.3, owner:'e', life:3, r:9, grav:750});
+          for (let i = 0; i < 4; i++) {
+            addProj({x:ecx(e), y:e.y - 6, vx:vx * 0.7 + (Math.random() - 0.5) * 160, vy:-220 - Math.random() * 100, type:'shard', dmg:e.dmg * 0.6, owner:'e', life:1.2, r:3, grav:650});
+          }
+        }
+        if (e.stT <= 0) { e.state = 'chase'; e.stT = rage ? 1.8 : 2.6; }
+      } else if (e.state === 'stomp') {
+        // Triple Tremor: stomps the ground 3 times in rapid succession
+        e.vx = approach(e.vx, 0, 800 * dt);
+        e.subT = (e.subT || 0) - dt;
+        if (e.subT <= 0 && e.stompCount < 3) {
+          e.subT = 0.35;
+          e.stompCount++;
+          shake(6 + e.stompCount * 2);
+          addParticles(ecx(e), e.y + e.h, '#d8b878', 20, 150, 0.5);
+          for (const s of [-1, 1]) {
+            addProj({x:ecx(e) + s * 20, y:e.y + e.h - 6, vx:s * (230 + e.stompCount * 45), vy:0, type:'shock', dmg:e.dmg * (0.7 + e.stompCount * 0.15), owner:'e', life:1.2, r:8, pierce:true});
+          }
+        }
+        if (e.stT <= 0) { e.state = 'chase'; e.stT = rage ? 2 : 2.8; }
       }
       if (frozen) e.vx = 0;
       e.vy = Math.min(e.vy + GRAV * dt, 900);
@@ -1191,31 +1285,61 @@ function updateBoss(e, dt) {
       if (e.state === 'intro' && e.stT <= 0) { e.state = 'float'; e.stT = 5; }
       if (e.state === 'float') {
         const want = 220, tx = ecx(p) - Math.sign(dx || 1) * want, ty = Math.min(gy - 90, ecy(p) - 70) + Math.sin(e.t * 2) * 20;
-        e.vx = approach(e.vx, clamp((tx - ecx(e)) * 1.5, -150, 150), 350 * dt);
-        e.vy = approach(e.vy, clamp((ty - ecy(e)) * 1.5, -150, 150), 350 * dt);
+        e.vx = approach(e.vx, clamp((tx - ecx(e)) * 1.5, -160, 160), 350 * dt);
+        e.vy = approach(e.vy, clamp((ty - ecy(e)) * 1.5, -160, 160), 350 * dt);
         if (e.shootT <= 0) {
-          e.shootT = rage ? 1.6 : 2.2;
+          e.shootT = rage ? 1.4 : 1.9;
           const pt = b.proj || 'skullbolt';
-          for (let i = 0; i < 3; i++) { const a = Math.atan2(dy, dx) + (i - 1) * (pt === 'fireball' ? 0.25 : 0.5); addProj({x:ecx(e), y:ecy(e), vx:Math.cos(a) * 190, vy:Math.sin(a) * 190, type:pt, dmg:e.dmg, owner:'e', life:3.5, r:4, homing:pt === 'skullbolt', fire:pt === 'fireball', turn:1.5}); }
+          for (let i = 0; i < 3; i++) { const a = Math.atan2(dy, dx) + (i - 1) * (pt === 'fireball' ? 0.25 : 0.45); addProj({x:ecx(e), y:ecy(e), vx:Math.cos(a) * 200, vy:Math.sin(a) * 200, type:pt, dmg:e.dmg, owner:'e', life:3.5, r:4, homing:pt === 'skullbolt', fire:pt === 'fireball', turn:1.5}); }
         }
         if (e.summonT <= 0) {
-          e.summonT = 12;
+          e.summonT = 11;
           const n = minionCount();
           for (let i = 0; i < Math.min(b.minionMax ? 1 : 3, (b.minionMax || 5) - n); i++) { const m = makeEnemy(b.minion || 'skeleton', e.homeX + (Math.random() - 0.5) * 300, gy - 40, b.minionLvl || 48); m.summoned = true; m.summoner = e; m.aggro = true; m.y = gy - m.h - 1; enemies.push(m); }
         }
-        if (e.stT <= 0) { e.state = 'ring'; e.stT = 0.8; e.did = false; }
+        if (e.stT <= 0) {
+          const r = Math.random();
+          e.state = r < 0.35 ? 'ring' : r < 0.68 ? 'barrage' : 'beam';
+          e.stT = e.state === 'ring' ? 0.8 : e.state === 'barrage' ? 1.8 : 1.3;
+          e.did = false; e.subT = 0; e.shotCount = 0;
+        }
       } else if (e.state === 'ring') {
         e.vx *= 0.9; e.vy *= 0.9;
         if (!e.did && e.stT < 0.4) {
           e.did = true;
           const n = rage ? 16 : 10;
           const rp = b.ringProj || 'bone';
-          for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; addProj({x:ecx(e), y:ecy(e), vx:Math.cos(a) * 200, vy:Math.sin(a) * 200, type:rp, dmg:e.dmg * 0.8, owner:'e', life:2.5, r:4, ghost:true, fire:rp === 'fireball'}); }
+          for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; addProj({x:ecx(e), y:ecy(e), vx:Math.cos(a) * 210, vy:Math.sin(a) * 210, type:rp, dmg:e.dmg * 0.85, owner:'e', life:2.5, r:4, ghost:true, fire:rp === 'fireball'}); }
         }
         if (e.stT <= 0) {
           if (Math.random() < 0.5) { addParticles(ecx(e), ecy(e), '#9be36b', 30, 150, 0.6); teleportClear(e, () => e.homeX + (Math.random() - 0.5) * 400, () => gy - 120 - Math.random() * 30); addParticles(ecx(e), ecy(e), '#9be36b', 30, 150, 0.6); }
-          e.state = 'float'; e.stT = rage ? 3.5 : 5;
+          e.state = 'float'; e.stT = rage ? 3 : 4.5;
         }
+      } else if (e.state === 'barrage') {
+        // Soul Rain / Magma Cascade: rains skullbolts or fireballs from the sky
+        e.vx *= 0.9; e.vy *= 0.9;
+        e.subT = (e.subT || 0) - dt;
+        if (e.subT <= 0 && (e.shotCount || 0) < (rage ? 8 : 6)) {
+          e.subT = 0.2;
+          e.shotCount = (e.shotCount || 0) + 1;
+          const pt = b.proj || 'skullbolt';
+          const dropX = ecx(p) + (Math.random() - 0.5) * 240;
+          addParticles(dropX, gy - 240, pt === 'fireball' ? '#ff6a1a' : '#9be36b', 12, 60, 0.4);
+          addProj({x:dropX, y:gy - 220, vx:(Math.random() - 0.5) * 80, vy:240, type:pt, dmg:e.dmg * 0.9, owner:'e', life:3, r:5, fire:pt === 'fireball'});
+        }
+        if (e.stT <= 0) { e.state = 'float'; e.stT = rage ? 2.8 : 4; }
+      } else if (e.state === 'beam') {
+        // Necrotic Beam Stream: rapid focused burst toward target
+        e.vx *= 0.85; e.vy *= 0.85;
+        e.subT = (e.subT || 0) - dt;
+        if (e.subT <= 0 && (e.shotCount || 0) < 5) {
+          e.subT = 0.14;
+          e.shotCount = (e.shotCount || 0) + 1;
+          const a = Math.atan2(dy, dx) + (Math.random() - 0.5) * 0.12;
+          const pt = b.proj || 'skullbolt';
+          addProj({x:ecx(e), y:ecy(e), vx:Math.cos(a) * 360, vy:Math.sin(a) * 360, type:pt, dmg:e.dmg * 0.75, owner:'e', life:2.2, r:4, fire:pt === 'fireball'});
+        }
+        if (e.stT <= 0) { e.state = 'float'; e.stT = rage ? 2.5 : 3.5; }
       }
       if (frozen) { e.vx *= 0.5; e.vy *= 0.5; }
       e.x += e.vx * dt; e.y += e.vy * dt;
@@ -1240,34 +1364,67 @@ function updateBoss(e, dt) {
         if (l.t <= 0 || !lures.includes(l)) { e.state = 'hover'; e.stT = 1.5; }
       } else if (e.state === 'hover') {
         const side = ecx(p) < (minX + maxX) / 2 ? 1 : -1;
-        moveTo(ecx(p) + side * 230, ecy(p) - 120, rage ? 240 : 190);
+        moveTo(ecx(p) + side * 230, ecy(p) - 120, rage ? 250 : 195);
         e.facing = Math.sign(dx) || e.facing;
-        if (e.stT <= 0) { const r = Math.random(); e.state = r < 0.4 ? 'breath' : r < 0.72 ? 'dive' : 'rain'; e.stT = e.state === 'breath' ? 2.2 : e.state === 'dive' ? 1.5 : 2.6; e.did = false; e.fireT = 0; }
+        if (e.stT <= 0) {
+          const r = Math.random();
+          e.state = r < 0.22 ? 'breath' : r < 0.42 ? 'dive' : r < 0.62 ? 'rain' : r < 0.82 ? 'sweep' : 'cataclysm';
+          e.stT = e.state === 'breath' ? 2.2 : e.state === 'dive' ? 1.5 : e.state === 'rain' ? 2.6 : e.state === 'sweep' ? 1.8 : 2.4;
+          e.did = false; e.fireT = 0; e.cataT = 0;
+        }
       } else if (e.state === 'breath') {
         e.vx *= 0.92; e.vy *= 0.92; e.breathing = true;
         e.facing = Math.sign(dx) || e.facing;
         e.fireT -= dt;
         if (e.fireT <= 0) {
-          e.fireT = rage ? 0.06 : 0.08;
+          e.fireT = rage ? 0.05 : 0.07;
           const mx = ecx(e) + e.facing * e.w * 0.55, my = e.y + e.h * 0.25;
           const a = Math.atan2(ecy(p) - my, ecx(p) - mx) + (Math.random() - 0.5) * 0.25;
-          addProj({x:mx, y:my, vx:Math.cos(a) * 340, vy:Math.sin(a) * 340, type:'breath', dmg:e.dmg * 0.55, owner:'e', life:1.6, r:5, fire:true, ghost:true});
+          addProj({x:mx, y:my, vx:Math.cos(a) * 350, vy:Math.sin(a) * 350, type:'breath', dmg:e.dmg * 0.55, owner:'e', life:1.6, r:5, fire:true, ghost:true});
         }
         if (e.stT <= 0) { e.state = 'hover'; e.stT = rage ? 1.4 : 2; }
       } else if (e.state === 'dive') {
         if (!e.did) { e.did = true; e.ddx = Math.sign(dx) || 1; e.vy = 0; }
-        moveTo(ecx(e) + e.ddx * 400, ecy(p), rage ? 560 : 480);
-        e.vx = e.ddx * (rage ? 560 : 480);
+        moveTo(ecx(e) + e.ddx * 400, ecy(p), rage ? 580 : 500);
+        e.vx = e.ddx * (rage ? 580 : 500);
         e.facing = e.ddx;
         if (e.stT <= 0 || ecx(e) < minX + e.w / 2 + 4 || ecx(e) > maxX - e.w / 2 - 4) { e.state = 'hover'; e.stT = 1.6; }
       } else if (e.state === 'rain') {
         moveTo((minX + maxX) / 2, minY + 80, 200);
         e.fireT -= dt;
         if (e.fireT <= 0) {
-          e.fireT = rage ? 0.12 : 0.18;
-          addProj({x:ecx(p) + (Math.random() - 0.5) * 360, y:minY + 10, vx:0, vy:120, type:'goldrain', dmg:e.dmg * 0.6, owner:'e', life:3, r:4, grav:400});
+          e.fireT = rage ? 0.11 : 0.16;
+          addProj({x:ecx(p) + (Math.random() - 0.5) * 360, y:minY + 10, vx:0, vy:130, type:'goldrain', dmg:e.dmg * 0.6, owner:'e', life:3, r:4, grav:400});
         }
         if (e.stT <= 0) { e.state = 'hover'; e.stT = 1.8; }
+      } else if (e.state === 'sweep') {
+        // Golden Wing Bladewind: sweeps forward and unleashes a wall of flame waves
+        if (!e.did) {
+          e.did = true;
+          e.swDir = Math.sign(dx) || 1;
+          shake(8);
+          for (let i = -2; i <= 2; i++) {
+            const a = (e.swDir > 0 ? 0 : Math.PI) + i * 0.22;
+            addProj({x:ecx(e) + e.swDir * 40, y:ecy(e) + i * 14, vx:Math.cos(a) * 340, vy:Math.sin(a) * 340, type:'flamewave', dmg:e.dmg * 0.9, owner:'e', life:1.6, r:7, fire:true, ghost:true});
+          }
+        }
+        moveTo(ecx(p) - (Math.sign(dx) || 1) * 200, ecy(p) - 80, 320);
+        if (e.stT <= 0) { e.state = 'hover'; e.stT = rage ? 1.5 : 2.2; }
+      } else if (e.state === 'cataclysm') {
+        // Dragonfire Cataclysm: positions in upper hall, roars, and detonates a 16-way radial fire burst
+        moveTo((minX + maxX) / 2, minY + 100, 260);
+        e.cataT = (e.cataT || 0) - dt;
+        if (!e.did && e.stT < 1.6) {
+          e.did = true;
+          shake(10);
+          toast('Aurex unleashes a Dragonfire Cataclysm!', 'red');
+          const n = rage ? 18 : 14;
+          for (let i = 0; i < n; i++) {
+            const a = (i / n) * Math.PI * 2;
+            addProj({x:ecx(e), y:ecy(e), vx:Math.cos(a) * 280, vy:Math.sin(a) * 280, type:'breath', dmg:e.dmg * 0.85, owner:'e', life:2.5, r:6, fire:true, ghost:true});
+          }
+        }
+        if (e.stT <= 0) { e.state = 'hover'; e.stT = rage ? 1.6 : 2.5; }
       }
       if (frozen) { e.vx *= 0.5; e.vy *= 0.5; }
       e.x = clamp(e.x + e.vx * dt, minX, maxX - e.w);
@@ -1311,7 +1468,7 @@ function makeMiniBoss(m) {
   e.sc = sc; e.w = d.w * sc; e.h = d.h * sc;
   e.name = m.name; e.mini = m.id; e.miniDef = m;
   const D = diff(), bs = bossScaling();
-  e.maxHp = Math.max(30, Math.round(enemyHp(d.hp, m.lvl) * ENEMY_HEALTH * 8 * D.hp * bs.hp)); e.hp = e.maxHp;
+  e.maxHp = Math.max(30, Math.round(enemyHp(d.hp, m.lvl) * ENEMY_HEALTH * 11 * D.hp * bs.hp)); e.hp = e.maxHp;
   e.dmg = Math.max(1, Math.round(enemyDmg(d.dmg, m.lvl) * ENEMY_DAMAGE_SCALE * 1.6 * D.dmg * bs.dmg));
   e.xp = Math.round(enemyXp(m.lvl, d.xpm) * 10 * D.reward);
   e.coins = Math.round(d.coins * (1 + m.lvl * 0.25) * 10 * D.reward);

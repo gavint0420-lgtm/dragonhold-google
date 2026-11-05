@@ -472,6 +472,7 @@ function refreshSlots() {
       grid.appendChild(d); bindSlot(d);
     }
     bindSlot($('armorSlot'));
+    if ($('trashSlot')) bindSlot($('trashSlot'));
   }
   [...hb.children].forEach((d, i) => {
     d.innerHTML = slotHTML(hotbar[i], `<span class="key">${(i + 1) % 10}</span>`);
@@ -481,6 +482,11 @@ function refreshSlots() {
   [...$('invGrid').children].forEach((d, i) => { d.innerHTML = slotHTML(inv[i]); d.classList.toggle('rare', !!(inv[i] && inv[i].rare)); });
   const a = $('armorSlot');
   a.innerHTML = player && player.armorId ? slotHTML({id:player.armorId, n:1}) : '<span class="ph">Armor</span>';
+  const tr = $('trashSlot');
+  if (tr) {
+    tr.innerHTML = '<span class="trash-ph">Trash</span>';
+    tr.classList.toggle('has-item', !!held);
+  }
   const s = hotbar[sel];
   $('heldName').textContent = s ? (s.rare ? '★ ' : '') + ITEMS[s.id].name : '';
   if (openPanel === 'invPanel') renderCrafting();
@@ -489,6 +495,7 @@ function bindSlot(d) {
   d.addEventListener('mousedown', ev => {
     ev.preventDefault(); ev.stopPropagation();
     if (d.id === 'armorSlot') { armorSlotClick(); return; }
+    if (d.id === 'trashSlot') { trashSlotClick(); return; }
     const arr = d.dataset.arr === 'hotbar' ? hotbar : inv, i = +d.dataset.i;
     if (d.dataset.arr === 'hotbar' && openPanel !== 'invPanel') { sel = i; refreshSlots(); return; }
     if (ev.button === 2) { slotRightClick(arr, i); return; }
@@ -529,16 +536,36 @@ function armorSlotClick() {
   }
   recalcStats(); refreshSlots(); updateHeld();
 }
+function trashSlotClick() {
+  if (held) {
+    const it = ITEMS[held.id];
+    const name = (held.n > 1 ? `${held.n}× ` : '') + (it ? it.name : 'item');
+    toast(`Trashed ${name}.`, 'red');
+    held = null;
+    updateHeld();
+    refreshSlots();
+  } else {
+    toast('Pick up an item first, then click the trash slot (or press Delete) to destroy it.');
+  }
+}
 function updateHeld() {
   const h = $('heldItem');
   if (held) { h.hidden = false; h.innerHTML = slotHTML(held); }
   else h.hidden = true;
 }
 function showTooltip(d) {
+  const tt = $('tooltip');
+  if (d.id === 'trashSlot') {
+    tt.innerHTML = `<div class="tt-name" style="color:#ff7777">Trash Slot</div><div class="tt-sub">Destroy unwanted items</div><div class="tt-desc">Click here while holding an item (or press Delete) to permanently destroy it.</div>`;
+    tt.hidden = false;
+    const r = d.getBoundingClientRect();
+    tt.style.left = Math.min(window.innerWidth - 270, r.right + 8) + 'px';
+    tt.style.top = Math.max(8, Math.min(window.innerHeight - tt.offsetHeight - 8, r.top)) + 'px';
+    return;
+  }
   let s;
   if (d.id === 'armorSlot') s = player.armorId ? {id:player.armorId, n:1} : null;
   else s = (d.dataset.arr === 'hotbar' ? hotbar : inv)[+d.dataset.i];
-  const tt = $('tooltip');
   if (!s) { tt.hidden = true; return; }
   tt.innerHTML = itemInfoHTML(s.id, s.rare);
   tt.hidden = false;

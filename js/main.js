@@ -67,6 +67,11 @@ function keyDown(e) {
   if (rebinding) { e.preventDefault(); finishRebind(e.code); return; }
   if (mode !== 'play') return;
   const k = e.code;
+  if (openPanel === 'invPanel' && (k === 'Delete' || k === 'Backspace') && held) {
+    e.preventDefault();
+    trashSlotClick();
+    return;
+  }
   if (openPanel && openPanel !== 'invPanel') {
     if (k === 'Escape' || (actionFor(k) === 'map' && openPanel === 'mapPanel')) closePanels();
     return;

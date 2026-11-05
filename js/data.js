@@ -200,18 +200,18 @@ const EN = {
 
 // ===== Bosses =====
 const BOSSES = {
-  goblin_king:{name:'Grukk, the Goblin King', lvl:12, hp:600, dmg:16, w:30, h:44, x:368, drop:'coin_scepter', coins:300, quest:'goblin_king'},
-  witch_queen:{name:'Morwenna, the Witch Queen', lvl:25, hp:900, dmg:22, w:18, h:36, x:968, drop:'thornroot', coins:900, quest:'witch_queen'},
-  ogre_warlord:{name:'Brogg, the Ogre Warlord', lvl:40, hp:1400, dmg:28, w:40, h:60, x:1468, drop:'warlord_hammer', coins:2500, quest:'ogre_warlord'},
-  archlich:{name:'Vaelith, the Archlich', lvl:52, hp:1500, dmg:30, w:22, h:40, x:1720, drop:'soulreaver', coins:5000, quest:'archlich'},
-  gold_dragon:{name:'Aurex, the Gilded Wyrm', lvl:60, hp:2200, dmg:36, w:120, h:60, x:2120, drop:'hoardbreaker', coins:20000, quest:'gold_dragon'},
+  goblin_king:{name:'Grukk, the Goblin King', lvl:12, hp:1100, dmg:24, w:30, h:44, x:368, drop:'coin_scepter', coins:300, quest:'goblin_king'},
+  witch_queen:{name:'Morwenna, the Witch Queen', lvl:25, hp:1700, dmg:34, w:18, h:36, x:968, drop:'thornroot', coins:900, quest:'witch_queen'},
+  ogre_warlord:{name:'Brogg, the Ogre Warlord', lvl:40, hp:2600, dmg:42, w:40, h:60, x:1468, drop:'warlord_hammer', coins:2500, quest:'ogre_warlord'},
+  archlich:{name:'Vaelith, the Archlich', lvl:52, hp:2800, dmg:45, w:22, h:40, x:1720, drop:'soulreaver', coins:5000, quest:'archlich'},
+  gold_dragon:{name:'Aurex, the Gilded Wyrm', lvl:60, hp:4400, dmg:56, w:120, h:60, x:2120, drop:'hoardbreaker', coins:20000, quest:'gold_dragon'},
   // biome bosses that don't hold a rune-seal (optional, one per biome that had none)
   // pattern = which boss fight style it uses; minion/proj/ringProj tune that style
-  orc_warchief:{name:'Ironjaw, the Orc Warchief', lvl:18, hp:750, dmg:18, w:24, h:46, x:560, drop:'warchief_axe', coins:500,
+  orc_warchief:{name:'Ironjaw, the Orc Warchief', lvl:18, hp:1350, dmg:27, w:24, h:46, x:560, drop:'warchief_axe', coins:500,
     pattern:'goblin_king', minion:'orc', minionLvl:15, throwProj:'bone'},
-  bloodmoon_alpha:{name:'Fenris, the Bloodmoon Alpha', lvl:31, hp:1100, dmg:24, w:26, h:46, x:1130, drop:'bloodmoon_claw', coins:1500,
+  bloodmoon_alpha:{name:'Fenris, the Bloodmoon Alpha', lvl:31, hp:2000, dmg:36, w:26, h:46, x:1130, drop:'bloodmoon_claw', coins:1500,
     pattern:'ogre_warlord', minion:'werewolf', minionLvl:28, fast:true},
-  magma_wyrm:{name:'Pyraxis, the Magma Wyrm', lvl:57, hp:1800, dmg:32, w:76, h:44, x:1880, drop:'magma_fang', coins:9000,
+  magma_wyrm:{name:'Pyraxis, the Magma Wyrm', lvl:57, hp:3400, dmg:48, w:76, h:44, x:1880, drop:'magma_fang', coins:9000,
     pattern:'archlich', minion:'drake', minionLvl:54, minionMax:2, proj:'fireball', ringProj:'fireball'},
 };
 

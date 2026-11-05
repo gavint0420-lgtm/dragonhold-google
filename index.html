@@ -159,6 +159,10 @@ a.btn { display: block; text-align: center; text-decoration: none; box-sizing: b
 #invGrid { display: grid; grid-template-columns: repeat(6, 46px); gap: 4px; }
 .inv-side { display: grid; gap: 10px; align-content: start; }
 .armor-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.trash-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.slot.trash-slot { border-color: rgba(220, 70, 70, 0.55); background: rgba(36, 12, 16, 0.85); }
+.slot.trash-slot:hover { border-color: #ff5555; box-shadow: 0 0 10px rgba(255, 85, 85, 0.5); }
+.slot .trash-ph { font-size: 11px; font-weight: 700; color: #ff7777; letter-spacing: 0.5px; }
 #statsBox { font-size: 13px; color: var(--muted); line-height: 1.5; }
 #statsBox b { color: var(--text); }
 .hint { font-size: 12px; color: var(--muted); }
@@ -516,8 +520,9 @@ textarea { width: 100%; box-sizing: border-box; height: 90px; background: var(--
     <div class="inv-side">
       <div id="invGrid"></div>
       <div class="armor-row"><div class="slot" id="armorSlot"></div><div>Armor slot. Right-click armor to equip it.</div></div>
+      <div class="trash-row"><div class="slot trash-slot" id="trashSlot" title="Trash Slot"><span class="trash-ph">Trash</span></div><div>Trash slot. Click with an item held (or press Delete) to destroy it.</div></div>
       <div id="statsBox"></div>
-      <div class="hint">Click to pick up and place items. Shift-click moves items between the hotbar and your bag. Right-click a potion to drink it.</div>
+      <div class="hint">Click to pick up and place items. Shift-click moves items between the hotbar and your bag. Right-click a potion to drink it. Click the trash slot or press Delete to discard.</div>
     </div>
     <div style="min-width:0">
       <h2 style="font-size:22px;margin:0">Crafting</h2>

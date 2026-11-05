@@ -1230,6 +1230,13 @@ function drawProjectile(g, p, time) {
       circ(g, p.x, p.y, 4, '#f5cc45'); circ(g, p.x - 1, p.y - 1, 1.5, '#fff6c8'); break;
     case 'bone':
       g.save(); g.translate(p.x, p.y); g.rotate(time * 10); rr(g, -4, -1, 8, 2, '#e6e0cf'); g.restore(); break;
+    case 'boulder':
+      g.save(); g.translate(p.x, p.y); g.rotate(time * 5);
+      circ(g, 0, 0, p.r || 8, '#70685e');
+      circ(g, -2, -2, (p.r || 8) * 0.7, '#8e867a');
+      circ(g, 3, 2, 2.5, '#4a443c');
+      g.restore();
+      break;
     default:
       circ(g, p.x, p.y, p.r || 3, '#fff');
   }
