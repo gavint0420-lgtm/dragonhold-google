@@ -320,43 +320,221 @@ function drawSky() {
   gr.addColorStop(0, top); gr.addColorStop(1, bot);
   ctx.fillStyle = gr; ctx.fillRect(0, 0, VW, VH);
   if (nightK > 0.3) {
-    ctx.fillStyle = `rgba(255,255,255,${(nightK - 0.3) * 0.9})`;
-    for (let i = 0; i < 90; i++) {
+    const tw = performance.now() / 1000;
+    for (let i = 0; i < 140; i++) {
       const x = (hash2(i, 1, 5) * VW * 1.5 - cam.x * 0.02) % VW, y = hash2(i, 2, 5) * VH * 0.6;
-      ctx.fillRect((x + VW) % VW, y, 1.5, 1.5);
+      const twinkle = 0.55 + 0.45 * Math.sin(tw * (1.5 + hash2(i, 3, 5) * 3) + i), big = hash2(i, 4, 5) > 0.9;
+      ctx.fillStyle = `rgba(255,${big ? 240 : 255},${big ? 210 : 255},${(nightK - 0.3) * 0.9 * twinkle})`;
+      ctx.fillRect((x + VW) % VW, y, big ? 2.2 : 1.4, big ? 2.2 : 1.4);
     }
   }
-  // sun / moon
-  const ang = G.dayT * Math.PI * 2;
+  const now = performance.now() / 1000, biome = BIOMES[biomeIndexAt(tx)].id;
+  // sun / moon position along its arc
   const dayArc = G.dayT < 0.64 ? G.dayT / 0.64 : (G.dayT - 0.64) / 0.36;
   const sx = VW * (0.1 + dayArc * 0.8), sy = VH * 0.42 - Math.sin(dayArc * Math.PI) * VH * 0.32;
-  if (G.dayT < 0.64) { ctx.fillStyle = 'rgba(255,240,180,0.25)'; ctx.beginPath(); ctx.arc(sx, sy, 34, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff3c4'; ctx.beginPath(); ctx.arc(sx, sy, 18, 0, Math.PI * 2); ctx.fill(); }
-  else { ctx.fillStyle = '#e8ecf8'; ctx.beginPath(); ctx.arc(sx, sy, 14, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = top; ctx.beginPath(); ctx.arc(sx + 6, sy - 3, 12, 0, Math.PI * 2); ctx.fill(); }
-  // drifting clouds
-  const cloudA = 0.55 * (1 - nightK * 0.7);
+  // dawn and dusk: an orange band along the horizon
+  const dusk = G.dayT < 0.08 ? 1 - G.dayT / 0.08 : G.dayT > 0.54 && G.dayT < 0.7 ? 1 - Math.abs(G.dayT - 0.62) / 0.08 : 0;
+  if (dusk > 0) {
+    const hg = ctx.createLinearGradient(0, VH * 0.25, 0, VH * 0.75);
+    hg.addColorStop(0, 'rgba(255,140,60,0)'); hg.addColorStop(1, `rgba(255,120,50,${0.45 * clamp(dusk, 0, 1)})`);
+    ctx.fillStyle = hg; ctx.fillRect(0, 0, VW, VH);
+  }
+  if (G.dayT < 0.64) drawCoolSun(sx, sy, now, clamp(dusk, 0, 1));
+  else drawMoon(sx, sy, now, top);
+  // a shooting star now and then at night
+  if (nightK > 0.6) {
+    const cyc = 9, k = (now % cyc) / 1.1, n = Math.floor(now / cyc);
+    if (k < 1) {
+      const x0 = hash2(n, 7, 3) * VW * 0.7 + VW * 0.15, y0 = hash2(n, 8, 3) * VH * 0.25 + 20, dx = 160 * k, dy = 60 * k;
+      const sg = ctx.createLinearGradient(x0 + dx - 60, y0 + dy - 22, x0 + dx, y0 + dy);
+      sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(1, `rgba(255,255,255,${0.9 * (1 - k)})`);
+      ctx.strokeStyle = sg; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0 + dx - 60, y0 + dy - 22); ctx.lineTo(x0 + dx, y0 + dy); ctx.stroke();
+    }
+  }
+  const hillBase = (66 * TILE - cam.y) * Z;
+  // far snowy mountains, hazy blue, barely moving
+  {
+    const par = 0.05, base = hillBase * 0.25 + VH * 0.33;
+    const mcol = mixHex(mixHex(rgbToHex(s.hill), '#8a9ab8', 0.55), '#05070f', Math.min(0.85, nightK * 0.8));
+    const ridge = x => { const wx = (cam.x * Z * par + x) / 520; const r = 1 - Math.abs(fbm2(wx, 31, 91, 4) * 2 - 1); return base - r * 150; };
+    const mg = ctx.createLinearGradient(0, base - 150, 0, base + 40);
+    mg.addColorStop(0, mixHex(rgbToHex(mcol), '#ffffff', 0.25 * (1 - nightK))); mg.addColorStop(1, mcol);
+    ctx.fillStyle = mg; ctx.beginPath(); ctx.moveTo(0, VH);
+    for (let x = 0; x <= VW + 8; x += 8) ctx.lineTo(x, ridge(x));
+    ctx.lineTo(VW, VH); ctx.closePath(); ctx.fill();
+    // snow on the highest peaks
+    ctx.fillStyle = `rgba(245,248,255,${0.75 - nightK * 0.45})`;
+    for (let x = 0; x <= VW + 8; x += 8) { const y = ridge(x); if (y < base - 112) { const y2 = ridge(x + 8); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 8, y2); ctx.lineTo(x + 8, Math.max(y2, base - 104)); ctx.lineTo(x, Math.max(y, base - 104)); ctx.closePath(); ctx.fill(); } }
+  }
+  // drifting clouds: puffy, with a lit top and a shaded belly
+  const cloudA = 0.6 * (1 - nightK * 0.7);
   for (let i = 0; i < 9; i++) {
     const w = 90 + hash2(i, 3, 11) * 140, span = VW + w * 2;
     const cx = (((hash2(i, 1, 11) * span + G.time * (5 + i) - cam.x * Z * 0.06) % span) + span) % span - w;
     const cy = 40 + hash2(i, 2, 11) * VH * 0.28 - cam.y * Z * 0.02;
-    ctx.fillStyle = nightK > 0.5 ? `rgba(160,170,200,${cloudA * 0.6})` : `rgba(255,255,255,${cloudA})`;
-    for (let k = 0; k < 5; k++) {
-      const ox = (k - 2) * w * 0.2, oy = -Math.sin(k / 4 * Math.PI) * w * 0.12;
-      ctx.beginPath(); ctx.ellipse(cx + ox, cy + oy, w * 0.22, w * 0.13, 0, 0, Math.PI * 2); ctx.fill();
+    const lit = nightK > 0.5 ? [160, 170, 200] : dusk > 0.3 ? [255, 214, 190] : [255, 255, 255];
+    const shade = nightK > 0.5 ? [110, 118, 150] : [205, 214, 232];
+    const puffs = [[-0.42, 0, 0.2], [-0.2, -0.1, 0.26], [0.05, -0.16, 0.3], [0.3, -0.07, 0.24], [0.48, 0.02, 0.17]];
+    ctx.fillStyle = `rgba(${shade[0]},${shade[1]},${shade[2]},${cloudA})`;
+    for (const [ox, oy, r] of puffs) { ctx.beginPath(); ctx.ellipse(cx + ox * w, cy + oy * w + w * 0.05, r * w, r * w * 0.62, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = `rgba(${lit[0]},${lit[1]},${lit[2]},${cloudA})`;
+    for (const [ox, oy, r] of puffs) { ctx.beginPath(); ctx.ellipse(cx + ox * w, cy + oy * w - w * 0.02, r * w * 0.92, r * w * 0.55, 0, 0, Math.PI * 2); ctx.fill(); }
+  }
+  // birds in V shapes by day, bats at night in the spooky places
+  drawFlyers(now, nightK, biome);
+  // parallax hills, with trees, ruins, towers or smoke along their ridges depending on the biome
+  for (let layer = 0; layer < 2; layer++) {
+    const par = layer === 0 ? 0.15 : 0.35, amp = layer === 0 ? 90 : 60, div = layer === 0 ? 260 : 160;
+    const col = mixHex(rgbToHex(s.hill), '#05070f', Math.min(0.85, nightK * 0.8 + (layer === 0 ? 0.25 : 0)));
+    const base = hillBase * (0.4 + layer * 0.3) + VH * (0.35 - layer * 0.05);
+    const ridge = x => base - fbm2((cam.x * Z * par + x) / div, layer * 10, 77, 3) * amp * 2;
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, VH);
+    for (let x = 0; x <= VW + 8; x += 8) ctx.lineTo(x, ridge(x));
+    ctx.lineTo(VW, VH); ctx.closePath(); ctx.fill();
+    // a soft lighter rim along the top of the far hills
+    if (layer === 0) { ctx.strokeStyle = `rgba(255,255,255,${0.08 * (1 - nightK)})`; ctx.lineWidth = 2; ctx.beginPath(); for (let x = 0; x <= VW + 8; x += 8) x ? ctx.lineTo(x, ridge(x) + 1) : ctx.moveTo(x, ridge(x) + 1); ctx.stroke(); }
+    drawRidgeDetails(layer, par, ridge, col, biome, now);
+  }
+  // low mist over the swamp and Duskwood
+  if (biome === 'swamp' || biome === 'darkforest') {
+    const my = hillBase * 0.7 + VH * 0.3;
+    for (let i = 0; i < 4; i++) {
+      const off = ((now * (6 + i * 3) + i * 300) % (VW + 400)) - 200;
+      const mg = ctx.createRadialGradient(off, my, 0, off, my, 260);
+      mg.addColorStop(0, `rgba(200,215,205,${0.12 * (1 - nightK * 0.5)})`); mg.addColorStop(1, 'rgba(200,215,205,0)');
+      ctx.fillStyle = mg; ctx.fillRect(off - 260, my - 120, 520, 240);
     }
   }
-  // parallax hills
-  const hillBase = (66 * TILE - cam.y) * Z;
-  for (let layer = 0; layer < 2; layer++) {
-    const par = layer === 0 ? 0.15 : 0.35, amp = layer === 0 ? 90 : 60;
-    const col = mixHex(rgbToHex(s.hill), '#05070f', Math.min(0.85, nightK * 0.8 + (layer === 0 ? 0.25 : 0)));
-    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, VH);
-    const base = hillBase * (0.4 + layer * 0.3) + VH * (0.35 - layer * 0.05);
-    for (let x = 0; x <= VW + 8; x += 8) {
-      const wx = (cam.x * Z * par + x) / (layer === 0 ? 260 : 160);
-      const y = base - fbm2(wx, layer * 10, 77, 3) * amp * 2;
-      ctx.lineTo(x, y);
+  // the volcano's red glow on the horizon
+  if (biome === 'volcano' || biome === 'castle') {
+    const vg = ctx.createLinearGradient(0, VH * 0.45, 0, VH);
+    vg.addColorStop(0, 'rgba(255,80,20,0)'); vg.addColorStop(1, `rgba(255,80,20,${0.18 + 0.06 * Math.sin(now * 1.3)})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, VW, VH);
+  }
+}
+// ===== The sun: big, glowing, spinning rays, wearing sunglasses and a confident grin =====
+function drawCoolSun(sx, sy, t, dusk) {
+  const r = 26, bob = Math.sin(t * 1.4) * 2.5;
+  const body = dusk > 0 ? mixHex('#ffd23f', '#ff7a2a', dusk * 0.8) : '#ffd23f';
+  ctx.save(); ctx.translate(sx, sy + bob);
+  // glow
+  const gl = ctx.createRadialGradient(0, 0, r * 0.6, 0, 0, r * 3.2);
+  gl.addColorStop(0, 'rgba(255,230,140,0.55)'); gl.addColorStop(0.4, 'rgba(255,210,90,0.18)'); gl.addColorStop(1, 'rgba(255,210,90,0)');
+  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, r * 3.2, 0, Math.PI * 2); ctx.fill();
+  // rays, slowly turning, long and short ones taking turns
+  ctx.save(); ctx.rotate(t * 0.25);
+  for (let i = 0; i < 14; i++) {
+    const a = i / 14 * Math.PI * 2, long = i % 2 === 0, L = r * (long ? 1.75 : 1.45) + Math.sin(t * 3 + i) * 2;
+    ctx.fillStyle = long ? body : mixHex(body, '#fff2a0', 0.4);
+    ctx.beginPath(); ctx.moveTo(Math.cos(a - 0.11) * r * 1.08, Math.sin(a - 0.11) * r * 1.08); ctx.lineTo(Math.cos(a) * L, Math.sin(a) * L); ctx.lineTo(Math.cos(a + 0.11) * r * 1.08, Math.sin(a + 0.11) * r * 1.08); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  // face tilts a little, like it's nodding to music
+  ctx.rotate(Math.sin(t * 0.8) * 0.07);
+  const fg = ctx.createRadialGradient(-r * 0.3, -r * 0.35, r * 0.1, 0, 0, r);
+  fg.addColorStop(0, '#fff8c8'); fg.addColorStop(0.55, body); fg.addColorStop(1, mixHex(body, '#e07a10', 0.5));
+  ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(200,110,10,0.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+  // rosy cheeks
+  ctx.fillStyle = 'rgba(255,120,80,0.35)';
+  ctx.beginPath(); ctx.ellipse(-r * 0.58, r * 0.2, r * 0.17, r * 0.11, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(r * 0.58, r * 0.2, r * 0.17, r * 0.11, 0, 0, Math.PI * 2); ctx.fill();
+  // sunglasses: two dark lenses, a bridge, arms back to the edge, and a shine
+  const lens = (cx) => {
+    ctx.beginPath(); ctx.moveTo(cx - r * 0.34, -r * 0.3); ctx.lineTo(cx + r * 0.34, -r * 0.3);
+    ctx.quadraticCurveTo(cx + r * 0.36, r * 0.06, cx + r * 0.06, r * 0.08); ctx.quadraticCurveTo(cx - r * 0.3, r * 0.08, cx - r * 0.34, -r * 0.3); ctx.closePath();
+  };
+  ctx.strokeStyle = '#141420'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-r * 0.86, -r * 0.34); ctx.lineTo(-r * 0.7, -r * 0.27); ctx.moveTo(r * 0.86, -r * 0.34); ctx.lineTo(r * 0.7, -r * 0.27); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-r * 0.06, -r * 0.24); ctx.quadraticCurveTo(0, -r * 0.32, r * 0.06, -r * 0.24); ctx.stroke();
+  for (const cx of [-r * 0.4, r * 0.4]) {
+    const lg = ctx.createLinearGradient(cx, -r * 0.3, cx, r * 0.08);
+    lg.addColorStop(0, '#2c2c44'); lg.addColorStop(1, '#05050a');
+    lens(cx); ctx.fillStyle = lg; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.save(); lens(cx); ctx.clip();
+    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.moveTo(cx - r * 0.22, -r * 0.28); ctx.lineTo(cx - r * 0.12, -r * 0.28); ctx.lineTo(cx - r * 0.26, r * 0.04); ctx.lineTo(cx - r * 0.34, r * 0.04); ctx.closePath(); ctx.fill();
+    // a glint sweeps across the lenses every few seconds
+    const gk = (t % 5) / 0.6;
+    if (gk < 1) { const gx = cx - r * 0.45 + gk * r * 0.9; ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(gx, -r * 0.35, r * 0.07, r * 0.5); }
+    ctx.restore();
+  }
+  // the grin: a lopsided, confident smile with teeth
+  ctx.beginPath(); ctx.moveTo(-r * 0.42, r * 0.3); ctx.quadraticCurveTo(0, r * 0.4, r * 0.46, r * 0.2);
+  ctx.quadraticCurveTo(r * 0.12, r * 0.74, -r * 0.42, r * 0.3); ctx.closePath();
+  ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.strokeStyle = '#7a3a06'; ctx.lineWidth = 1.8; ctx.stroke();
+  ctx.strokeStyle = 'rgba(122,58,6,0.5)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-r * 0.36, r * 0.33); ctx.quadraticCurveTo(r * 0.02, r * 0.47, r * 0.4, r * 0.26); ctx.stroke();
+  ctx.strokeStyle = '#7a3a06'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(r * 0.46, r * 0.2); ctx.quadraticCurveTo(r * 0.56, r * 0.12, r * 0.55, r * 0.04); ctx.stroke(); // dimple
+  ctx.restore();
+}
+// The moon: soft glow, craters and a crescent shadow
+function drawMoon(sx, sy, t, skyTop) {
+  const r = 17;
+  const gl = ctx.createRadialGradient(sx, sy, r * 0.8, sx, sy, r * 3.5);
+  gl.addColorStop(0, 'rgba(220,230,255,0.25)'); gl.addColorStop(1, 'rgba(220,230,255,0)');
+  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(sx, sy, r * 3.5, 0, Math.PI * 2); ctx.fill();
+  ctx.save(); ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.clip();
+  ctx.fillStyle = '#e8ecf8'; ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+  ctx.fillStyle = 'rgba(150,160,190,0.45)';
+  for (const [ox, oy, cr] of [[-0.35, -0.2, 0.22], [0.15, 0.3, 0.16], [-0.1, 0.45, 0.1], [0.3, -0.35, 0.12]]) { ctx.beginPath(); ctx.arc(sx + ox * r, sy + oy * r, cr * r, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = skyTop; ctx.beginPath(); ctx.arc(sx + r * 0.75, sy - r * 0.3, r * 0.95, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+// Birds by day (flapping V flocks), bats at night over Duskwood, the ruins and the castle
+function drawFlyers(t, nightK, biome) {
+  const bats = nightK > 0.5 && (biome === 'darkforest' || biome === 'ruins' || biome === 'castle');
+  if (nightK > 0.5 && !bats) return;
+  const a = bats ? 0.85 : 0.75 * (1 - nightK);
+  ctx.strokeStyle = bats ? `rgba(20,14,24,${a})` : `rgba(40,40,55,${a})`; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+  for (let f = 0; f < 2; f++) {
+    const span = VW + 300, speed = bats ? 34 : 22 + f * 8;
+    const fx = ((t * speed + f * 520 - cam.x * Z * 0.03) % span + span) % span - 150;
+    const fy = VH * (0.16 + f * 0.1) + Math.sin(t * 0.6 + f) * 12;
+    for (let b = 0; b < 5; b++) {
+      const side = b % 2 ? 1 : -1, row = Math.ceil(b / 2);
+      const x = fx - row * 14, y = fy + side * row * 9 + Math.sin(t * 2 + b) * 2;
+      const flap = Math.sin(t * (bats ? 14 : 8) + b * 1.3) * 3.5, s = bats ? 4 : 5;
+      ctx.beginPath();
+      if (bats) { ctx.moveTo(x - s * 1.6, y - flap * 0.5); ctx.lineTo(x - s * 0.8, y + 1); ctx.lineTo(x, y - 1); ctx.lineTo(x + s * 0.8, y + 1); ctx.lineTo(x + s * 1.6, y - flap * 0.5); }
+      else { ctx.moveTo(x - s, y - flap); ctx.quadraticCurveTo(x - s * 0.4, y - flap * 0.2, x, y + 1); ctx.quadraticCurveTo(x + s * 0.4, y - flap * 0.2, x + s, y - flap); }
+      ctx.stroke();
     }
-    ctx.lineTo(VW, VH); ctx.closePath(); ctx.fill();
+  }
+}
+// Little silhouettes standing on the hill ridges, so each biome's skyline looks different
+function drawRidgeDetails(layer, par, ridge, col, biome, t) {
+  const spacing = layer === 0 ? 46 : 34, shift = cam.x * Z * par;
+  const dark = mixHex(rgbToHex(col), '#000000', 0.18);
+  ctx.fillStyle = dark; ctx.strokeStyle = dark;
+  const k0 = Math.floor((shift - 40) / spacing), k1 = Math.ceil((shift + VW + 40) / spacing);
+  for (let k = k0; k <= k1; k++) {
+    const h = hash2(k, layer, 47); if (h < 0.35) continue; // leave gaps
+    const x = k * spacing - shift + (hash2(k, layer, 48) - 0.5) * spacing * 0.6, y = ridge(x) + 2;
+    const sz = (layer === 0 ? 0.7 : 1) * (0.7 + hash2(k, layer, 49) * 0.6);
+    switch (biome) {
+      case 'forest': case 'plains': // round leafy trees (sparser on the plains)
+        if (biome === 'plains' && h < 0.7) break;
+        ctx.fillRect(x - 1.5 * sz, y - 12 * sz, 3 * sz, 12 * sz);
+        ctx.beginPath(); ctx.arc(x, y - 16 * sz, 8 * sz, 0, Math.PI * 2); ctx.arc(x - 6 * sz, y - 11 * sz, 6 * sz, 0, Math.PI * 2); ctx.arc(x + 6 * sz, y - 11 * sz, 6 * sz, 0, Math.PI * 2); ctx.fill();
+        break;
+      case 'darkforest': case 'mountains': // tall pines
+        for (let i = 0; i < 3; i++) { const w = (9 - i * 2.4) * sz, yy = y - i * 8 * sz; ctx.beginPath(); ctx.moveTo(x - w, yy); ctx.lineTo(x, yy - 14 * sz); ctx.lineTo(x + w, yy); ctx.closePath(); ctx.fill(); }
+        break;
+      case 'swamp': // dead, twisted trees and reeds
+        ctx.lineWidth = 2 * sz; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 2 * sz, y - 20 * sz); ctx.lineTo(x - 5 * sz, y - 28 * sz); ctx.moveTo(x + 1 * sz, y - 13 * sz); ctx.lineTo(x + 9 * sz, y - 21 * sz); ctx.stroke();
+        ctx.lineWidth = 1; for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(x + 12 * sz + i * 2, y); ctx.lineTo(x + 12 * sz + i * 2.6, y - (6 + Math.abs(i) * 2) * sz); ctx.stroke(); }
+        break;
+      case 'ruins': // broken towers and pillars
+        if (h > 0.75) { ctx.fillRect(x - 5 * sz, y - 26 * sz, 10 * sz, 26 * sz); for (let i = 0; i < 3; i++) ctx.fillRect(x - 5 * sz + i * 4 * sz, y - 30 * sz, 2.5 * sz, 4 * sz); }
+        else { ctx.fillRect(x - 2.5 * sz, y - (10 + h * 12) * sz, 5 * sz, (10 + h * 12) * sz); }
+        break;
+      case 'volcano': // jagged rocks, with smoke rising from some of them
+        ctx.beginPath(); ctx.moveTo(x - 8 * sz, y); ctx.lineTo(x - 2 * sz, y - 16 * sz); ctx.lineTo(x + 3 * sz, y - 8 * sz); ctx.lineTo(x + 8 * sz, y); ctx.closePath(); ctx.fill();
+        if (h > 0.85) for (let i = 0; i < 4; i++) { const p = ((t * 0.25 + i * 0.25) % 1); ctx.fillStyle = `rgba(80,70,70,${0.35 * (1 - p)})`; ctx.beginPath(); ctx.arc(x - 2 * sz + p * 14, y - 16 * sz - p * 46, (4 + p * 10) * sz, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = dark; }
+        break;
+      case 'castle': // towers with little flags
+        if (h > 0.7) { ctx.fillRect(x - 4 * sz, y - 24 * sz, 8 * sz, 24 * sz); ctx.beginPath(); ctx.moveTo(x - 5 * sz, y - 24 * sz); ctx.lineTo(x, y - 32 * sz); ctx.lineTo(x + 5 * sz, y - 24 * sz); ctx.fill(); ctx.fillRect(x - 0.5, y - 40 * sz, 1, 8 * sz); ctx.beginPath(); ctx.moveTo(x, y - 40 * sz); ctx.lineTo(x + 7 * sz, y - 38 * sz + Math.sin(t * 4 + k) * 1.5); ctx.lineTo(x, y - 36 * sz); ctx.fill(); }
+        break;
+    }
   }
 }
 function rgbToHex(c) {
