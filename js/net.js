@@ -136,6 +136,7 @@ function onPeerMsg(from, d) {
       if (d.sw > pr.swingT) { pr.swingT = d.sw; pr.swingDur = d.sd; }
       pr.aimLocal = d.al; pr.mining = d.m; pr.hp = d.hp; pr.maxHp = d.mhp; pr.dead = d.dead; pr.level = d.lv;
       if (d.n) pr.name = d.n;
+      if (d.c && CLASS_LOOK[d.c]) pr.heroClass = d.c; // each friend keeps their own Knight / Rogue / Wizard look
       break;
     }
     case 'tile':
@@ -235,7 +236,7 @@ function startGuestWorld(d) {
 }
 function coopCharData() {
   const p = player;
-  return {ww:WW, p:{level:p.level, xp:p.xp, coins:p.coins, armorId:p.armorId}, hotbar, inv, sel,
+  return {ww:WW, p:{level:p.level, xp:p.xp, coins:p.coins, armorId:p.armorId, heroClass:p.heroClass || startWeapon}, hotbar, inv, sel,
     q:{mainQ:G.mainQ, mainProg:G.mainProg, side:G.side, kills:G.kills, pity:G.pity, ways:G.ways, lastWay:G.lastWay, play:G.play, deaths:G.deaths, introSeen:true,
       home:G.home || null, minisFirst:G.minisFirst}};
 }
@@ -332,7 +333,7 @@ function netTick(dt) {
     const p = player, s = hotbar[sel];
     netSend('others', {k:'pos', x:Math.round(p.x * 10) / 10, y:Math.round(p.y * 10) / 10, vx:Math.round(p.vx), vy:Math.round(p.vy), f:p.facing, g:p.onGround,
       wp:Math.round((p.walkPhase || 0) * 100) / 100, a:p.armorId, h:s ? s.id : null, r:!!(s && s.rare), sw:p.swingT, sd:p.swingDur, al:p.aimLocal,
-      m:p.mining, hp:Math.round(p.hp), mhp:p.maxHp, dead:p.dead, lv:p.level, n:NET.name});
+      m:p.mining, hp:Math.round(p.hp), mhp:p.maxHp, dead:p.dead, lv:p.level, n:NET.name, c:p.heroClass || startWeapon});
   }
   if (NET.host) {
     NET.snapT -= dt;
