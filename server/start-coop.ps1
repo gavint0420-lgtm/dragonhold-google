@@ -78,6 +78,7 @@ function Update-DownloadZip {
       foreach ($f in Get-ChildItem $root -Recurse -File -Force) {
         $rel = $f.FullName.Substring($root.Length + 1)
         if ($rel -like 'download\*' -or $rel -eq 'server\dev.key') { continue } # never share the developer key
+        if ($rel -like '.git\*' -or $rel -like '.claude\*') { continue } # git history and tool settings aren't part of the game
         # forward slashes so the folders unzip correctly on every computer
         [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($za, $f.FullName, 'Dragonhold/' + $rel.Replace('\', '/'), [IO.Compression.CompressionLevel]::Optimal)
       }
