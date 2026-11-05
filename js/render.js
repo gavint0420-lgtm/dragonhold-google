@@ -233,8 +233,24 @@ function rrect(g, x, y, w, h, r) {
 }
 function limb(g, x, y, ang, len, w, col, endCol, endLen) {
   g.save(); g.translate(x, y); g.rotate(ang);
-  g.fillStyle = col; rrect(g, -w / 2, -0.6, w, len + 0.6, w / 2); g.fill(); g.stroke();
-  if (endCol) { g.fillStyle = endCol; rrect(g, -w / 2 - 0.2, len - endLen, w + 1.5, endLen + 0.4, 1.1); g.fill(); g.stroke(); }
+  const grad = g.createLinearGradient(-w / 2, 0, w / 2, 0);
+  grad.addColorStop(0, shade(col, 1.18));
+  grad.addColorStop(0.65, col);
+  grad.addColorStop(1, shade(col, 0.75));
+  g.fillStyle = grad; rrect(g, -w / 2, -0.6, w, len + 0.6, w / 2); g.fill(); g.stroke();
+  // joint guard plate highlight
+  g.fillStyle = shade(col, 1.25);
+  rrect(g, -w / 2 + 0.4, len * 0.42, w - 0.8, 2.0, 0.6); g.fill();
+  if (endCol) {
+    const egrad = g.createLinearGradient(-w / 2 - 0.2, 0, w / 2 + 1.3, 0);
+    egrad.addColorStop(0, shade(endCol, 1.22));
+    egrad.addColorStop(0.7, endCol);
+    egrad.addColorStop(1, shade(endCol, 0.72));
+    g.fillStyle = egrad; rrect(g, -w / 2 - 0.2, len - endLen, w + 1.5, endLen + 0.4, 1.1); g.fill(); g.stroke();
+    // cuff rim & strap
+    g.fillStyle = shade(endCol, 1.35);
+    rrect(g, -w / 2 - 0.1, len - endLen - 0.3, w + 1.3, 0.9, 0.4); g.fill();
+  }
   g.restore();
 }
 // Draws a humanoid with its feet at the origin, facing +x. Returns the body bob so held items can follow.
@@ -247,7 +263,7 @@ function drawHumanoid(g, o, time) {
   g.save();
   g.scale(1 + sq * 0.14, 1 - sq * 0.14);
   const hipY = -10.6 + bob;
-  // cape flows behind, further when running or falling
+  // cape flows behind, further when running or falling, with realistic fold highlights
   if (o.cape) {
     const flow = Math.min(1, (o.speed || 0) / 150);
     const wave = Math.sin(time * 6 + (o.seed || 0)) * (0.6 + flow);
@@ -258,6 +274,18 @@ function drawHumanoid(g, o, time) {
     g.lineTo(tx + 3.6, ty + 1.2 + bob);
     g.quadraticCurveTo(-1.8, -12 + bob, 1.2, -21.2 + bob);
     g.closePath(); g.fill(); g.stroke();
+    // deep crease shadow inside cape fold
+    g.strokeStyle = shade(o.cape, 0.65); g.lineWidth = 0.9;
+    g.beginPath(); g.moveTo(-2.5, -17 + bob); g.quadraticCurveTo(-4.2 - flow * 2, -10 + bob + wave * 0.8, tx + 1.5, ty + 0.5 + bob); g.stroke();
+    // highlight along cape crest
+    g.strokeStyle = shade(o.cape, 1.25); g.lineWidth = 0.6;
+    g.beginPath(); g.moveTo(-3.2, -19 + bob); g.quadraticCurveTo(-5.5 - flow * 2.5, -12 + bob + wave, tx + 0.5, ty - 0.2 + bob); g.stroke();
+    g.lineWidth = 0.7; g.strokeStyle = OUTLINE;
+  }
+  // far shoulder pauldron
+  if (o.helm || o.plume || o.hood) {
+    g.fillStyle = shade(o.trim || o.body, 0.75);
+    rrect(g, -3.8, -22.5 + bob, 4.4, 3.6, 1.3); g.fill(); g.stroke();
   }
   // far limbs
   if (!o.dress) limb(g, -0.8, hipY, -legA, 10.6, 3.7, shade(o.legs, 0.72), shade(o.boots, 0.75), 3.2);
@@ -265,75 +293,135 @@ function drawHumanoid(g, o, time) {
   // skirt or near leg
   if (o.dress) {
     const sg = g.createLinearGradient(0, -14 + bob, 0, 0);
-    sg.addColorStop(0, shade(o.body, 1.1)); sg.addColorStop(1, shade(o.body, 0.78));
+    sg.addColorStop(0, shade(o.body, 1.15)); sg.addColorStop(1, shade(o.body, 0.78));
     g.fillStyle = sg; g.beginPath(); g.moveTo(-4.5, -13 + bob); g.lineTo(4.5, -13 + bob);
     g.quadraticCurveTo(6.8, -5, 7 + Math.sin(time * 2) * 0.4, 0); g.lineTo(-7, 0); g.quadraticCurveTo(-6.8, -5, -4.5, -13 + bob);
     g.closePath(); g.fill(); g.stroke();
-    g.fillStyle = o.trim; g.fillRect(-6.8, -1.6, 13.6, 1.3);
-  } else limb(g, 1.2, hipY, legA, 10.6, 3.7, o.legs, o.boots, 3.2);
-  // torso
+    // ornate gold embroidery along hem
+    g.fillStyle = o.trim; g.fillRect(-6.8, -2.0, 13.6, 1.8);
+    for (let rx = -5.5; rx <= 5.5; rx += 2.2) {
+      g.fillStyle = shade(o.trim, 1.3); g.fillRect(rx, -3.2, 1.1, 1.1);
+    }
+  } else {
+    limb(g, 1.2, hipY, legA, 10.6, 3.7, o.legs, o.boots, 3.2);
+  }
+  // torso with realistic breastplate volume and central tapul crease
   const tg = g.createLinearGradient(0, -23 + bob, 0, -10 + bob);
-  tg.addColorStop(0, shade(o.body, 1.22)); tg.addColorStop(1, shade(o.body, 0.86));
+  tg.addColorStop(0, shade(o.body, 1.25)); tg.addColorStop(0.45, shade(o.body, 1.05)); tg.addColorStop(1, shade(o.body, 0.82));
   g.fillStyle = tg; rrect(g, -5, -22.8 + bob, 10, 12.8, 3.2); g.fill(); g.stroke();
-  g.fillStyle = o.trim; rrect(g, -5, -12.6 + bob, 10, 2.1, 1); g.fill();
-  if (o.helm) { g.fillStyle = shade(o.trim, 1.05); g.beginPath(); g.arc(0.6, -17.8 + bob, 1.6, 0, Math.PI * 2); g.fill(); }
-  else { g.fillStyle = shade(o.body, 0.75); g.fillRect(-0.4, -22 + bob, 0.9, 9); }
+  // central breastplate vertical ridge (tapul) & specular highlight
+  g.strokeStyle = shade(o.body, 1.35); g.lineWidth = 0.8;
+  g.beginPath(); g.moveTo(0.2, -22.2 + bob); g.lineTo(0.2, -13 + bob); g.stroke();
+  g.fillStyle = 'rgba(255,255,255,0.22)';
+  rrect(g, -1.2, -21.5 + bob, 1.0, 7.5, 0.4); g.fill();
+  // corner brass/steel rivets
+  g.fillStyle = shade(o.trim || '#ffd700', 1.1);
+  for (const rx of [-3.6, 3.6]) {
+    g.beginPath(); g.arc(rx, -20.5 + bob, 0.6, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(rx, -15 + bob, 0.6, 0, Math.PI * 2); g.fill();
+  }
+  // leather waist belt with steel/gold engraved buckle
+  g.fillStyle = shade(o.body, 0.65); rrect(g, -5.2, -12.8 + bob, 10.4, 2.5, 0.8); g.fill(); g.stroke();
+  g.fillStyle = o.trim || '#ffd700'; rrect(g, -1.4, -13.2 + bob, 2.8, 3.3, 0.6); g.fill(); g.stroke();
+  g.fillStyle = '#111'; rrect(g, -0.6, -12.4 + bob, 1.2, 1.7, 0.3); g.fill();
+  // near shoulder pauldron (spaulder)
+  if (o.helm || o.plume || o.hood) {
+    const pg = g.createLinearGradient(-1, -23 + bob, 3, -19 + bob);
+    pg.addColorStop(0, shade(o.trim || o.body, 1.3));
+    pg.addColorStop(1, shade(o.body, 0.75));
+    g.fillStyle = pg; rrect(g, 0.2, -22.8 + bob, 4.6, 3.8, 1.4); g.fill(); g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.3)'; rrect(g, 0.8, -22.4 + bob, 3.2, 0.8, 0.4); g.fill();
+  }
   // head
   const hx = 0.6, hy = -27 + bob;
   if (o.helm) {
-    const hg = g.createRadialGradient(hx - 1.5, hy - 2, 0.5, hx, hy, 5.2);
-    hg.addColorStop(0, shade(o.helm, 1.45)); hg.addColorStop(1, shade(o.helm, 0.82));
-    g.fillStyle = hg; g.beginPath(); g.arc(hx, hy, 4.7, 0, Math.PI * 2); g.fill(); g.stroke();
-    g.fillStyle = '#16121c'; rrect(g, hx + 0.2, hy - 0.6, 4.4, 1.5, 0.7); g.fill();
+    // 3D shaded knight helmet with cheek guard and visor bevel
+    const hg = g.createRadialGradient(hx - 1.2, hy - 2, 0.5, hx, hy, 5.4);
+    hg.addColorStop(0, shade(o.helm, 1.5)); hg.addColorStop(0.65, o.helm); hg.addColorStop(1, shade(o.helm, 0.72));
+    g.fillStyle = hg; g.beginPath(); g.arc(hx, hy, 4.8, 0, Math.PI * 2); g.fill(); g.stroke();
+    // helmet crown ridge (fluted crest)
+    g.strokeStyle = shade(o.helm, 1.4); g.lineWidth = 0.9;
+    g.beginPath(); g.arc(hx - 0.2, hy, 4.8, Math.PI * 0.8, Math.PI * 1.4); g.stroke();
+    // visor eye slit with metallic highlight bevel & dark interior
+    g.fillStyle = '#0a0810'; rrect(g, hx + 0.1, hy - 0.7, 4.6, 1.6, 0.6); g.fill();
+    g.fillStyle = shade(o.helm, 1.45); rrect(g, hx + 0.2, hy - 1.2, 4.4, 0.6, 0.3); g.fill();
+    // lower visor ventail breathing holes
+    g.fillStyle = '#1a1820';
+    for (let vx = 0; vx < 3; vx++) {
+      g.beginPath(); g.arc(hx + 1.2 + vx * 1.1, hy + 1.8, 0.45, 0, Math.PI * 2); g.fill();
+    }
     g.fillStyle = shade(o.helm, 0.7); g.fillRect(hx - 0.3, hy - 4.6, 0.9, 9.2);
+    // multi-strand flowing horsehair plume
     if (o.plume) {
-      g.fillStyle = o.trim; g.beginPath(); g.moveTo(hx - 1, hy - 4.3);
-      g.quadraticCurveTo(hx - 3, hy - 9.5, hx - 8 - Math.sin(time * 5) * 0.8, hy - 6.5);
-      g.quadraticCurveTo(hx - 4, hy - 6, hx + 1, hy - 4); g.fill(); g.stroke();
-    } else { g.fillStyle = o.cape || o.trim; g.beginPath(); g.ellipse(hx - 0.3, hy - 5, 1.2, 1.8, -0.3, 0, Math.PI * 2); g.fill(); }
+      g.fillStyle = o.trim;
+      for (let layer = 0; layer < 3; layer++) {
+        const offY = layer * 1.2, sway = Math.sin(time * 5 + layer * 0.8) * 0.9;
+        g.fillStyle = layer === 0 ? shade(o.trim, 1.2) : layer === 1 ? o.trim : shade(o.trim, 0.8);
+        g.beginPath(); g.moveTo(hx - 1, hy - 4.4 + offY);
+        g.quadraticCurveTo(hx - 3.5, hy - 9.8 + offY, hx - 8.5 - sway, hy - 6.5 + offY);
+        g.quadraticCurveTo(hx - 4.5, hy - 5.5 + offY, hx + 0.8, hy - 3.8 + offY);
+        g.fill(); g.stroke();
+      }
+    } else {
+      g.fillStyle = o.cape || o.trim; g.beginPath(); g.ellipse(hx - 0.3, hy - 5, 1.2, 1.8, -0.3, 0, Math.PI * 2); g.fill();
+    }
   } else if (o.hood) {
-    // Assassin hood & cowl
-    const hg = g.createRadialGradient(hx - 1, hy - 2, 0.5, hx, hy, 5.2);
-    hg.addColorStop(0, shade(o.hoodCol || '#2a2233', 1.3));
-    hg.addColorStop(1, shade(o.hoodCol || '#2a2233', 0.8));
+    // Assassin cowl & hood with realistic fabric depth
+    const hg = g.createRadialGradient(hx - 1, hy - 2, 0.5, hx, hy, 5.4);
+    hg.addColorStop(0, shade(o.hoodCol || '#2a2233', 1.35));
+    hg.addColorStop(1, shade(o.hoodCol || '#2a2233', 0.75));
     g.fillStyle = hg;
-    g.beginPath(); g.arc(hx, hy, 4.8, 0, Math.PI * 2); g.fill(); g.stroke();
-    // trailing cowl at the back
+    g.beginPath(); g.arc(hx, hy, 4.9, 0, Math.PI * 2); g.fill(); g.stroke();
+    // trailing cowl at the back with cloth creases
     g.beginPath(); g.moveTo(hx, hy - 4.6);
     g.quadraticCurveTo(hx - 4, hy - 8, hx - 8 - Math.sin(time * 5) * 0.7, hy - 5);
     g.quadraticCurveTo(hx - 4, hy - 2, hx - 2, hy + 2);
     g.closePath(); g.fill(); g.stroke();
-    // shadow recess inside hood
-    g.fillStyle = '#0f0c14';
-    g.beginPath(); g.arc(hx + 1.2, hy - 0.2, 3.2, 0, Math.PI * 2); g.fill();
-    // assassin mask covering mouth & nose
+    // deep shadow recess inside hood
+    g.fillStyle = '#08060c';
+    g.beginPath(); g.arc(hx + 1.2, hy - 0.2, 3.3, 0, Math.PI * 2); g.fill();
+    // assassin mask covering mouth & nose with leather cross-weave
     if (o.mask) {
       g.fillStyle = o.maskCol || '#241a2c';
-      rrect(g, hx - 0.2, hy - 0.2, 4.4, 3.8, 0.8); g.fill(); g.stroke();
+      rrect(g, hx - 0.2, hy - 0.2, 4.5, 3.8, 0.8); g.fill(); g.stroke();
+      g.strokeStyle = shade(o.maskCol || '#241a2c', 1.3); g.lineWidth = 0.5;
+      g.beginPath(); g.moveTo(hx, hy + 1.2); g.lineTo(hx + 4, hy + 1.2); g.stroke();
     }
-    // focused glowing assassin eye
+    // focused glowing assassin eye with iris and white specular pupil
     g.fillStyle = o.eyeCol || '#ffb347';
-    g.beginPath(); g.arc(hx + 2.3, hy - 1.0, 0.9, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(hx + 2.3, hy - 1.0, 1.0, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#ffffff';
-    g.beginPath(); g.arc(hx + 2.5, hy - 1.2, 0.35, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(hx + 2.5, hy - 1.2, 0.4, 0, Math.PI * 2); g.fill();
   } else {
     g.fillStyle = o.skin || '#f0c8a0'; g.beginPath(); g.arc(hx, hy, 4.3, 0, Math.PI * 2); g.fill(); g.stroke();
     g.fillStyle = o.hair;
     g.beginPath(); g.arc(hx - 0.4, hy - 0.8, 4.4, Math.PI * 0.92, Math.PI * 2.08); g.lineTo(hx + 1.5, hy - 2); g.lineTo(hx - 3.5, hy + 0.5); g.closePath(); g.fill();
     if (o.long) { rrect(g, hx - 5, hy - 1.5, 3, 9, 1.4); g.fill(); }
-    g.fillStyle = '#1e1a22'; g.beginPath(); g.arc(hx + 2.3, hy - 0.2, 0.65, 0, Math.PI * 2); g.fill();
+    // expressive eye with sclera, pupil, and glint
+    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(hx + 2.2, hy - 0.3, 1.0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#1e1a22'; g.beginPath(); g.arc(hx + 2.4, hy - 0.3, 0.6, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(hx + 2.5, hy - 0.5, 0.25, 0, Math.PI * 2); g.fill();
     g.fillStyle = 'rgba(220,120,110,0.5)'; g.beginPath(); g.arc(hx + 2.2, hy + 1.6, 0.8, 0, Math.PI * 2); g.fill();
-    if (o.beard) { g.fillStyle = o.beard; g.beginPath(); g.moveTo(hx - 1.5, hy + 1.2); g.quadraticCurveTo(hx + 2, hy + 7, hx + 4.2, hy + 1.4); g.closePath(); g.fill(); }
+    if (o.beard) {
+      g.fillStyle = o.beard; g.beginPath(); g.moveTo(hx - 1.5, hy + 1.2); g.quadraticCurveTo(hx + 2, hy + 7.5, hx + 4.3, hy + 1.4); g.closePath(); g.fill();
+      // beard hair highlights
+      g.strokeStyle = shade(o.beard, 1.25); g.lineWidth = 0.5;
+      g.beginPath(); g.moveTo(hx + 0.5, hy + 2); g.lineTo(hx + 1.5, hy + 6.5); g.stroke();
+    }
   }
   if (o.hat) {
-    g.fillStyle = o.hat; g.beginPath(); g.ellipse(hx, hy - 3, 7, 1.6, 0, 0, Math.PI * 2); g.fill(); g.stroke();
-    g.beginPath(); g.moveTo(hx - 4, hy - 3.5); g.quadraticCurveTo(hx - 1, hy - 9, hx - 4 + Math.sin(time * 1.5), hy - 13); g.quadraticCurveTo(hx + 1, hy - 8, hx + 4, hy - 3.5); g.closePath(); g.fill(); g.stroke();
-    g.fillStyle = '#f5cc45'; g.beginPath(); g.arc(hx - 0.5, hy - 7, 0.9, 0, Math.PI * 2); g.fill();
+    // pointed wizard hat with brim curve, embroidered runes, and gold buckle
+    g.fillStyle = o.hat; g.beginPath(); g.ellipse(hx, hy - 3, 7.2, 1.8, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(hx - 4, hy - 3.5); g.quadraticCurveTo(hx - 1, hy - 9, hx - 4.5 + Math.sin(time * 1.5), hy - 13.5);
+    g.quadraticCurveTo(hx + 1, hy - 8, hx + 4, hy - 3.5); g.closePath(); g.fill(); g.stroke();
+    // golden hatband buckle
+    g.fillStyle = '#f5cc45'; rrect(g, hx - 1.2, hy - 4.6, 2.4, 2.0, 0.5); g.fill(); g.stroke();
+    g.fillStyle = '#111'; rrect(g, hx - 0.5, hy - 4.2, 1.0, 1.2, 0.3); g.fill();
     if (o.arcaneEye) {
       g.fillStyle = o.arcaneEye;
-      g.beginPath(); g.arc(hx + 2.3, hy - 0.3, 1.1, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(hx + 2.3, hy - 0.3, 1.2, 0, Math.PI * 2); g.fill();
       g.fillStyle = '#ffffff';
-      g.beginPath(); g.arc(hx + 2.6, hy - 0.5, 0.4, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(hx + 2.6, hy - 0.5, 0.45, 0, Math.PI * 2); g.fill();
     }
   }
   if (o.crown) {
@@ -591,156 +679,461 @@ function humanoidBase(g, mv, skin, cloth, legs, h) {
 }
 const SPRITES = {
   goblin(g, t, mv) {
-    rr(g, -3 + mv * 0.5, -7, 2.5, 7, '#3a2a1a'); rr(g, 0.5 - mv * 0.5, -7, 2.5, 7, '#3a2a1a');
-    rr(g, -4, -13, 8, 7, '#7a5a3a'); rr(g, -4, -9, 8, 1, '#4a3a2a');
-    rr(g, -4, -20, 9, 7, '#6f9a3c'); tri(g, -4, -18, -9, -21, -4, -15, '#6f9a3c'); tri(g, 4, -18, 8, -21, 4, -15, '#6f9a3c');
-    rr(g, 1, -18, 2, 2, '#ff3a3a'); rr(g, 1, -15, 3, 1, '#2a2a1a');
-    rr(g, 4, -12, 1.5, 5, '#a8683a');
+    // hunched goblin legs with clawed feet
+    rr(g, -3.5 + mv * 0.5, -8, 2.8, 8, '#2a2016'); rr(g, 0.5 - mv * 0.5, -8, 2.8, 8, '#2a2016');
+    rr(g, -2.5 + mv * 0.5, -1.5, 3.2, 1.6, '#4f722a'); rr(g, 1.5 - mv * 0.5, -1.5, 3.2, 1.6, '#4f722a');
+    // torso with stitched ragged leather jerkin & rope belt
+    rr(g, -4.5, -14, 9, 7.5, '#5e432a');
+    g.fillStyle = '#3a2a1a'; rrect(g, -4.8, -10, 9.6, 1.8, 0.6); g.fill();
+    g.fillStyle = '#bda050'; circ(g, 0, -9.1, 0.8);
+    // cross-stitch laces
+    g.strokeStyle = '#281c10'; g.lineWidth = 0.6;
+    g.beginPath(); g.moveTo(-2, -13); g.lineTo(2, -11); g.moveTo(2, -13); g.lineTo(-2, -11); g.stroke();
+    // sinewy green goblin head with notched bat-like ears
+    rr(g, -4.5, -21.5, 9.5, 7.8, '#5b8532');
+    tri(g, -4.5, -19, -10.5, -23, -4.5, -16, '#5b8532');
+    tri(g, -4.5, -18.5, -9, -21.5, -4.5, -16.5, '#3e5e22'); // inner ear shadow
+    tri(g, 5, -19, 10.5, -23, 5, -16, '#5b8532');
+    tri(g, 5, -18.5, 9, -21.5, 5, -16.5, '#3e5e22');
+    // wrinkled brow & piercing yellow eyes with slit pupils
+    g.fillStyle = '#2d4418'; rr(g, 0, -20.5, 4.2, 0.9);
+    g.fillStyle = '#ffd033'; rr(g, 1.2, -19.5, 2.4, 2.0);
+    g.fillStyle = '#111'; rr(g, 2.4, -19.2, 0.8, 1.4);
+    // bared lower tooth
+    g.fillStyle = '#e8dec5'; tri(g, 1.8, -15.5, 2.8, -15.5, 2.3, -17.2);
+    // crude iron scimitar with chipped edge and metallic shine
+    rr(g, 4.5, -13, 1.8, 6, '#3a2818');
+    g.fillStyle = '#8a929e';
+    g.beginPath(); g.moveTo(5.5, -13); g.lineTo(9.5, -18); g.lineTo(7.5, -10); g.closePath(); g.fill();
+    g.fillStyle = '#ffffff'; rr(g, 8.5, -16.5, 0.8, 2.5);
   },
   rat(g, t, mv) {
-    g.strokeStyle = '#d08a8a'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-8, -4); g.quadraticCurveTo(-14, -8 + Math.sin(t * 6) * 2, -16, -2); g.stroke();
-    g.fillStyle = '#7d6b5d'; g.beginPath(); g.ellipse(-1, -5, 9, 5, 0, 0, Math.PI * 2); g.fill();
-    g.beginPath(); g.ellipse(7, -5, 4, 3.2, 0.2, 0, Math.PI * 2); g.fill();
-    circ(g, 6, -9, 2, '#a08a7a'); rr(g, 8, -6, 1.5, 1.5, '#ff3a3a'); rr(g, 10.5, -5, 1.5, 1.2, '#d08a8a');
-    rr(g, -5 + mv, -1, 2, 1.5, '#5d4b3d'); rr(g, 3 - mv, -1, 2, 1.5, '#5d4b3d');
+    // realistic rodent anatomy: arched back, fur texture, whiskers, pink snout & incisors
+    g.strokeStyle = '#d48a8a'; g.lineWidth = 1.4; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(-8, -4); g.quadraticCurveTo(-14, -8 + Math.sin(t * 7) * 2.5, -17, -2); g.stroke();
+    // fur body with back curvature gradient
+    const rg = g.createRadialGradient(0, -6, 2, 0, -6, 9);
+    rg.addColorStop(0, '#8c7766'); rg.addColorStop(0.7, '#675446'); rg.addColorStop(1, '#47382d');
+    g.fillStyle = rg; g.beginPath(); g.ellipse(-1, -5.5, 9.5, 5.5, 0, 0, Math.PI * 2); g.fill();
+    // dorsal fur ridge strokes
+    g.strokeStyle = '#47382d'; g.lineWidth = 0.7;
+    for (let fx = -5; fx <= 3; fx += 2.5) { g.beginPath(); g.moveTo(fx, -11); g.lineTo(fx - 1, -9); g.stroke(); }
+    // head & snout
+    g.fillStyle = '#786454'; g.beginPath(); g.ellipse(7.2, -5.2, 4.4, 3.4, 0.15, 0, Math.PI * 2); g.fill();
+    // pink inner ear
+    circ(g, 6, -9.5, 2.3, '#8a7260'); circ(g, 6, -9.5, 1.4, '#d89a9a');
+    // glowing ruby eye with glint
+    circ(g, 8.2, -6.5, 1.6, '#ff2222'); circ(g, 8.6, -6.8, 0.5, '#ffffff');
+    // pink twitching snout and white incisors
+    circ(g, 11, -5.0, 1.3, '#d88e8e');
+    g.fillStyle = '#fff8e8'; rr(g, 10.2, -3.8, 1.0, 1.6, '#fff8e8');
+    // whiskers
+    g.strokeStyle = 'rgba(255,255,255,0.6)'; g.lineWidth = 0.5;
+    g.beginPath(); g.moveTo(10.5, -5); g.lineTo(13.5, -6.5); g.moveTo(10.5, -4.5); g.lineTo(13.5, -3.5); g.stroke();
+    // paws
+    rr(g, -5 + mv, -1.2, 2.4, 1.8, '#d88e8e'); rr(g, 3.5 - mv, -1.2, 2.4, 1.8, '#d88e8e');
   },
   skeleton(g, t, mv, e) {
-    const c = e && e.ally ? '#c8f0b0' : '#e6e0cf';
-    rr(g, -3 + mv * 0.5, -10, 2, 10, c); rr(g, 1 - mv * 0.5, -10, 2, 10, c);
-    rr(g, -1, -19, 2, 9, c); for (let i = 0; i < 3; i++) rr(g, -4, -18 + i * 2.5, 8, 1.2, c);
-    rr(g, -4, -27, 8, 7, c); rr(g, -2.5, -25, 2, 2, '#1a1a1a'); rr(g, 1, -25, 2, 2, e && e.ally ? '#7bd34a' : '#1a1a1a'); rr(g, -2, -21.5, 4, 1, '#1a1a1a');
-    rr(g, 4, -18, 1.5, 8, c); rr(g, 4.5, -24, 1.5, 7, '#cfc6ad');
+    const c = e && e.ally ? '#c8f0b0' : '#ece4d4', darkB = e && e.ally ? '#4a723a' : '#221e1a';
+    // articulated leg bones with knee joint condyles
+    rr(g, -3.5 + mv * 0.5, -10.5, 2.2, 10.5, c); rr(g, 1 - mv * 0.5, -10.5, 2.2, 10.5, c);
+    circ(g, -2.4 + mv * 0.5, -5.5, 1.4, c); circ(g, 2.1 - mv * 0.5, -5.5, 1.4, c); // knees
+    // pelvis bone
+    rrect(g, -4.2, -12, 8.4, 2.2, 0.8); g.fillStyle = c; g.fill();
+    // spine vertebrae column & ribcage with dark cavity
+    rr(g, -1.2, -20.5, 2.4, 9, c);
+    for (let i = 0; i < 4; i++) {
+      const rw = 8.5 - i * 0.8, ry = -19.5 + i * 2.2;
+      rrect(g, -rw / 2, ry, rw, 1.3, 0.5); g.fillStyle = c; g.fill();
+      g.fillStyle = darkB; circ(g, 0, ry + 0.6, 0.8); // spine cord gap
+    }
+    // sternum plate
+    g.fillStyle = c; rr(g, -0.6, -19.5, 1.2, 7.5);
+    // anatomical cranium with eye cavities and nasal notch
+    rrect(g, -4.6, -28.5, 9.2, 8.2, 2.4); g.fillStyle = c; g.fill();
+    // deep eye sockets with inner soul embers
+    g.fillStyle = darkB;
+    circ(g, -1.8, -25.5, 1.8); circ(g, 1.8, -25.5, 1.8);
+    g.fillStyle = e && e.ally ? '#7bd34a' : '#64e0ff'; // glowing soul embers in eyes
+    circ(g, -1.6, -25.5, 0.8); circ(g, 2.0, -25.5, 0.8);
+    // nasal cavity & teeth rows
+    g.fillStyle = darkB; tri(g, 0, -24.2, -0.7, -22.8, 0.7, -22.8);
+    for (let tx = -2.2; tx <= 2.2; tx += 1.4) {
+      g.fillStyle = c; rr(g, tx, -21.8, 0.9, 1.4, c);
+    }
+    // arm and weathered ancient iron sword with nicked blade
+    rr(g, 4.2, -18, 1.8, 8, c);
+    g.fillStyle = '#6a4a2a'; rr(g, 4.6, -20, 1.4, 5); // hilt
+    g.fillStyle = '#a8b0bc'; rrect(g, 3.6, -28.5, 2.2, 9, 0.5); g.fill();
+    g.fillStyle = '#ffffff'; rr(g, 4.8, -28, 0.6, 7.5); // blade shine
   },
   orc(g, t, mv) {
-    humanoidBase(g, mv, '#4f7a3a', '#6b4a2a', '#3a2a1a', 29);
-    rr(g, -5, -22, 10, 2, '#8a8f99');
-    rr(g, -5, -29, 10, 8, '#4f7a3a'); rr(g, 1, -27, 2, 1.5, '#ff3a3a'); rr(g, 2, -23, 1.2, 2.5, '#f0ead6'); rr(g, -1.5, -23, 1.2, 2.5, '#f0ead6');
-    rr(g, 5, -20, 2, 10, '#5a3f26'); rr(g, 5, -24, 5, 5, '#8a8f99');
+    // powerful muscular green hide with broad stance
+    humanoidBase(g, mv, '#4d7838', '#5e3f22', '#2c1e14', 30);
+    // muscular chest contours (pectorals & abs)
+    g.fillStyle = '#3e622b';
+    rrect(g, -4.5, -21.5, 4.2, 3.2, 0.8); g.fill();
+    rrect(g, 0.3, -21.5, 4.2, 3.2, 0.8); g.fill();
+    // iron belt & spiked shoulder pauldron
+    rr(g, -5.5, -16.5, 11, 2.5, '#787e8a');
+    g.fillStyle = '#d0d4dc'; circ(g, 0, -15.2, 1.2);
+    // orc head with jutting lower tusks & war paint
+    rr(g, -5.5, -30.5, 11, 9, '#4d7838');
+    // red tribal war paint across brow
+    g.fillStyle = '#b02424'; rr(g, -4.5, -28, 9, 1.6);
+    // menacing crimson eyes
+    g.fillStyle = '#ff2222'; rr(g, 1.2, -27.5, 2.4, 1.6);
+    g.fillStyle = '#111'; rr(g, 2.4, -27.2, 0.8, 1.2);
+    // sharp curved ivory tusks with realistic shading
+    g.fillStyle = '#f4eedc';
+    tri(g, -1.8, -23, -0.6, -23, -1.2, -26.5);
+    tri(g, 2.2, -23, 3.4, -23, 2.8, -26.5);
+    g.strokeStyle = '#c4b89e'; g.lineWidth = 0.5;
+    g.beginPath(); g.moveTo(-1.2, -23); g.lineTo(-1.2, -26); g.moveTo(2.8, -23); g.lineTo(2.8, -26); g.stroke();
+    // heavy double-flanged iron war-axe
+    rr(g, 5.5, -21, 2.4, 12, '#4a321e');
+    g.fillStyle = '#828a96';
+    g.beginPath(); g.moveTo(6.5, -22); g.lineTo(12, -26); g.lineTo(11, -18); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(5.5, -22); g.lineTo(1, -25); g.lineTo(2, -19); g.closePath(); g.fill();
+    g.fillStyle = '#ffffff'; rr(g, 10.5, -25, 0.8, 6);
   },
   witch(g, t, mv, e) {
-    const robe = e && e.queen ? '#3a1f5a' : '#5b3e7a';
-    g.fillStyle = robe; g.beginPath(); g.moveTo(-4, -20); g.lineTo(4, -20); g.lineTo(7, 0); g.lineTo(-7, 0); g.closePath(); g.fill();
-    rr(g, -3.5, -27, 7, 7, '#8fbf6a'); rr(g, 1, -25, 1.5, 1.5, '#ffeb3b'); rr(g, 3, -23, 2, 2, '#8fbf6a');
-    rr(g, -4, -27, 2, 7, '#2a2a2a');
-    tri(g, -7, -27, 7, -27, -2, -40, '#1f1a26'); rr(g, -7, -28, 14, 1.5, '#1f1a26');
-    if (e && e.queen) { rr(g, -4, -31, 8, 2, '#f5cc45'); rr(g, -3, -33, 1.5, 2, '#f5cc45'); rr(g, 1, -33, 1.5, 2, '#f5cc45'); }
-    rr(g, 6, -26, 1.5, 26, '#4a3020'); g.globalAlpha = 0.6 + Math.sin(t * 5) * 0.3; circ(g, 6.7, -27, 2.5, '#b05be0'); g.globalAlpha = 1;
+    const robe = e && e.queen ? '#351854' : '#4d306b', trim = e && e.queen ? '#ffd700' : '#a050d8';
+    // flowing mystical velvet dress with deep shadow folds
+    const wg = g.createLinearGradient(0, -22, 0, 0);
+    wg.addColorStop(0, shade(robe, 1.25)); wg.addColorStop(1, shade(robe, 0.75));
+    g.fillStyle = wg; g.beginPath(); g.moveTo(-4.5, -21); g.lineTo(4.5, -21); g.lineTo(8.5, 0); g.lineTo(-8.5, 0); g.closePath(); g.fill();
+    // cloth fold shadows
+    g.strokeStyle = shade(robe, 0.6); g.lineWidth = 0.8;
+    g.beginPath(); g.moveTo(-2, -18); g.lineTo(-4, 0); g.moveTo(2, -18); g.lineTo(4, 0); g.stroke();
+    // runic embroidered hem
+    g.fillStyle = trim; g.fillRect(-8.2, -1.8, 16.4, 1.4);
+    // crone face with hooked nose & yellow wicked eye
+    rr(g, -3.8, -28.5, 7.6, 7.6, '#7ca856');
+    circ(g, 1.8, -26.2, 1.6, '#ffee33'); circ(g, 2.2, -26.2, 0.6, '#111');
+    tri(g, 3.8, -25, 6.2, -24, 3.8, -23, '#6e984a'); // hooked nose
+    // crooked crone hat with wide brim, velvet band, and gold buckle
+    g.fillStyle = '#1c1624'; g.beginPath(); g.ellipse(0, -29, 8.5, 2.2, 0, 0, Math.PI * 2); g.fill();
+    tri(g, -7, -29, 7, -29, -2, -43, '#1c1624');
+    g.fillStyle = trim; rrect(g, -4, -30.5, 8, 1.6, 0.5); g.fill();
+    if (e && e.queen) {
+      // Queen's royal jeweled tiara
+      g.fillStyle = '#ffd700';
+      tri(g, -4, -31, -2, -35, 0, -31); tri(g, 0, -31, 2, -35, 4, -31);
+      circ(g, 0, -32, 1.2, '#d82850');
+    }
+    // twisted elderwood staff topped with levitating amethyst crystal
+    rr(g, 6.5, -28, 1.8, 28, '#422814');
+    g.save(); g.globalCompositeOperation = 'lighter';
+    const pulse = 0.7 + Math.sin(t * 6) * 0.3;
+    circ(g, 7.4, -30, 4.5 * pulse, 'rgba(180,90,240,0.4)');
+    circ(g, 7.4, -30, 2.6, '#d478ff');
+    circ(g, 7.4, -30, 1.2, '#ffffff');
+    g.restore();
   },
   spider(g, t) {
-    g.strokeStyle = '#2a1f2f'; g.lineWidth = 1.3;
+    // realistic multi-jointed spider legs with sharp tarsal claws
+    g.strokeStyle = '#221628'; g.lineWidth = 1.4; g.lineCap = 'round';
     for (let i = 0; i < 4; i++) {
-      const ph = Math.sin(t * 14 + i) * 2;
-      g.beginPath(); g.moveTo(0, -7); g.lineTo(-5 - i * 2.5, -11 + ph); g.lineTo(-7 - i * 2.5, 0); g.stroke();
-      g.beginPath(); g.moveTo(0, -7); g.lineTo(5 + i * 2.5, -11 - ph); g.lineTo(7 + i * 2.5, 0); g.stroke();
+      const ph = Math.sin(t * 14 + i * 0.9) * 2.2;
+      // coxa, femur, and tarsal claw bend
+      g.beginPath(); g.moveTo(0, -7); g.lineTo(-5 - i * 2.6, -12 + ph); g.lineTo(-8 - i * 2.6, -1); g.lineTo(-10 - i * 2.4, 0); g.stroke();
+      g.beginPath(); g.moveTo(0, -7); g.lineTo(5 + i * 2.6, -12 - ph); g.lineTo(8 + i * 2.6, -1); g.lineTo(10 + i * 2.4, 0); g.stroke();
     }
-    g.fillStyle = '#3a2a45'; g.beginPath(); g.ellipse(-4, -7, 7, 5, 0, 0, Math.PI * 2); g.fill();
-    g.beginPath(); g.ellipse(5, -6, 4, 3.5, 0, 0, Math.PI * 2); g.fill();
-    rr(g, -6, -9, 4, 1, '#c04040');
-    rr(g, 6, -8, 1.5, 1.5, '#ff3a3a'); rr(g, 8, -7, 1.5, 1.5, '#ff3a3a');
+    // bulbous abdomen with venom markings
+    const abG = g.createRadialGradient(-4, -7, 1, -4, -7, 7.5);
+    abG.addColorStop(0, '#4e335e'); abG.addColorStop(1, '#201428');
+    g.fillStyle = abG; g.beginPath(); g.ellipse(-4.2, -7.2, 7.5, 5.5, 0, 0, Math.PI * 2); g.fill();
+    // red hourglass warning mark
+    g.fillStyle = '#d82222';
+    tri(g, -6, -9, -2.5, -9, -4.2, -7.5); tri(g, -6, -6, -2.5, -6, -4.2, -7.5);
+    // cephalothorax
+    g.fillStyle = '#2f1e38'; g.beginPath(); g.ellipse(5.2, -6.2, 4.6, 3.8, 0, 0, Math.PI * 2); g.fill();
+    // cluster of 6 glowing arachnid eyes
+    g.fillStyle = '#ff2222';
+    for (const [ox, oy] of [[6.5, -8.2], [8.0, -7.5], [6.8, -6.2], [8.2, -5.5]]) {
+      circ(g, ox, oy, 0.9); circ(g, ox + 0.2, oy - 0.2, 0.35, '#ffffff');
+    }
+    // chelicerae with dripping green venom drop
+    g.fillStyle = '#180e1c'; tri(g, 8.5, -4.5, 10.5, -3.5, 9, -2);
+    circ(g, 9.8, -1.8, 0.9, '#5fe038');
   },
   werewolf(g, t, mv) {
-    rr(g, -4 + mv * 0.6, -11, 3.5, 11, '#5a4a3e'); rr(g, 0.5 - mv * 0.6, -11, 3.5, 11, '#5a4a3e');
-    rr(g, -6, -23, 12, 13, '#6e5c4e'); rr(g, -3, -21, 6, 8, '#8f7d6e');
-    rr(g, -4, -30, 9, 8, '#6e5c4e'); rr(g, 4, -27, 5, 4, '#6e5c4e'); rr(g, 8, -27, 1.5, 1.5, '#1a1a1a');
-    tri(g, -4, -30, -2, -35, 0, -30, '#5a4a3e'); tri(g, 1, -30, 3, -35, 5, -30, '#5a4a3e');
-    rr(g, 2, -28, 1.5, 1.5, '#ffd700'); rr(g, 5, -23.5, 3, 1, '#f0ead6');
-    rr(g, 5, -20, 3, 9, '#6e5c4e'); rr(g, 7, -12, 2, 2, '#f0ead6');
+    // powerful lupine anatomy with digitigrade hocks & fur ruff
+    rr(g, -4.5 + mv * 0.6, -12, 3.8, 12, '#4d3a2e'); rr(g, 0.5 - mv * 0.6, -12, 3.8, 12, '#4d3a2e');
+    // sharp paw claws
+    for (const cx of [-4.5 + mv * 0.6, 0.5 - mv * 0.6]) {
+      g.fillStyle = '#161210'; rr(g, cx - 1, -1.5, 4.8, 1.6);
+    }
+    // muscular torso with deep chest and jagged fur silhouette
+    rr(g, -6.5, -24, 13, 14, '#5e483a');
+    rr(g, -3.5, -22, 7, 9, '#7a6150'); // paler chest fur
+    // fur tuft spikes along spine
+    g.fillStyle = '#3a2b20';
+    tri(g, -6.5, -22, -9.5, -20, -6.5, -17);
+    tri(g, -6.5, -17, -9.5, -15, -6.5, -12);
+    // wolf head with pointed ears and snarling open muzzle
+    rr(g, -4.5, -31.5, 9.5, 8.5, '#5e483a');
+    tri(g, -4.5, -31.5, -2.5, -37, 0, -31.5, '#4d3a2e');
+    tri(g, 1, -31.5, 3.5, -37, 5.5, -31.5, '#4d3a2e');
+    // elongated snarling wolf snout
+    g.fillStyle = '#4d3a2e'; rrect(g, 3.5, -28.5, 6.2, 4.5, 1.2); g.fill();
+    circ(g, 9.2, -28.0, 1.3, '#161210'); // black nose
+    // bared ivory canines & red tongue
+    g.fillStyle = '#8a1818'; rr(g, 5, -25.5, 3.5, 1.6);
+    g.fillStyle = '#fff8e8';
+    tri(g, 5.2, -26.5, 6.4, -26.5, 5.8, -24); // upper fang
+    tri(g, 7.0, -24.5, 8.2, -24.5, 7.6, -26.5); // lower fang
+    // glowing feral amber eyes with slit pupils
+    g.fillStyle = '#ffd022'; circ(g, 2.5, -29.2, 1.6);
+    g.fillStyle = '#161210'; rr(g, 2.8, -29.8, 0.6, 1.4);
+    // muscular clawed arms
+    rr(g, 5.5, -21, 3.4, 10, '#5e483a');
+    for (let cl = 0; cl < 3; cl++) {
+      g.fillStyle = '#161210'; tri(g, 6.5 + cl * 1.2, -11, 7.5 + cl * 1.2, -11, 7.0 + cl * 1.2, -8.5);
+    }
   },
   troll(g, t, mv) {
-    rr(g, -6 + mv * 0.5, -13, 5, 13, '#5e7366'); rr(g, 1 - mv * 0.5, -13, 5, 13, '#5e7366');
-    rr(g, -7, -15, 14, 4, '#6b4a2a');
-    rr(g, -8, -30, 16, 16, '#6f8a78'); rr(g, -5, -36, 10, 7, '#6f8a78');
-    rr(g, 3, -34, 2, 2, '#ffeb3b'); rr(g, 4, -32, 4, 3, '#5e7366'); rr(g, 1, -30, 4, 1, '#2a2a2a');
-    rr(g, 7, -28, 4, 18, '#6f8a78'); rr(g, -11, -28, 4, 16, '#5e7366');
+    // colossal mossy stone-skinned troll with craggy knuckles
+    rr(g, -7 + mv * 0.5, -14, 5.5, 14, '#4f6658'); rr(g, 1.5 - mv * 0.5, -14, 5.5, 14, '#4f6658');
+    rr(g, -8, -16.5, 16, 4.5, '#563a1e'); // leather loincloth
+    // rocky torso with pebble-like armored skin calluses & moss patches
+    const tg = g.createLinearGradient(0, -32, 0, -16);
+    tg.addColorStop(0, '#668270'); tg.addColorStop(1, '#485e50');
+    g.fillStyle = tg; rrect(g, -9, -32, 18, 17, 3.5); g.fill();
+    // green moss patches on shoulders
+    g.fillStyle = '#78a840';
+    circ(g, -6, -30, 2.8); circ(g, 5, -29, 2.4); circ(g, -1, -26, 2.0);
+    // craggy troll head with deep brow ridge
+    rrect(g, -6, -38.5, 12, 8, 2.5); g.fillStyle = '#668270'; g.fill();
+    g.fillStyle = '#ffd833'; circ(g, 3.5, -35.5, 1.8); circ(g, 3.8, -35.5, 0.7, '#111');
+    // heavy underbite jaw with blunt tusks
+    rrect(g, 3.5, -34, 5.5, 3.8, 1.2); g.fillStyle = '#4f6658'; g.fill();
+    g.fillStyle = '#f0ead6'; tri(g, 5, -34, 6.5, -34, 5.8, -37);
+    // giant tree-trunk stone club
+    rr(g, 8, -30, 4.5, 20, '#668270');
+    rr(g, 10, -48, 5, 30, '#563a1e');
+    g.fillStyle = '#668270'; rrect(g, 8.5, -53, 8, 10, 2); g.fill();
   },
   wraith(g, t) {
-    const bob = Math.sin(t * 3) * 2;
-    g.globalAlpha *= 0.85;
-    g.fillStyle = '#28324a'; g.beginPath(); g.moveTo(-7, -24 + bob); g.lineTo(7, -24 + bob);
-    g.lineTo(6, -6 + bob); g.lineTo(2, -2 + Math.sin(t * 6) * 2); g.lineTo(-2, -5 + bob); g.lineTo(-6, 0 + Math.sin(t * 5) * 2); g.closePath(); g.fill();
-    circ(g, 0, -24 + bob, 6, '#1e2638');
-    rr(g, -2, -25 + bob, 2, 2, '#8ff0ff'); rr(g, 2, -25 + bob, 2, 2, '#8ff0ff');
-    g.globalAlpha = 1;
+    const bob = Math.sin(t * 3.5) * 2.8;
+    g.save();
+    g.globalAlpha *= 0.88;
+    // billowing ethereal shroud with translucent spectral gradients
+    const spG = g.createLinearGradient(0, -28 + bob, 0, 4 + bob);
+    spG.addColorStop(0, '#1c2438'); spG.addColorStop(0.5, '#283854'); spG.addColorStop(1, 'rgba(40,60,90,0)');
+    g.fillStyle = spG;
+    g.beginPath(); g.moveTo(-8, -25 + bob); g.lineTo(8, -25 + bob);
+    g.lineTo(7, -6 + bob); g.lineTo(3, 2 + Math.sin(t * 6) * 3); g.lineTo(-2, -4 + bob); g.lineTo(-7, 3 + Math.sin(t * 5) * 3);
+    g.closePath(); g.fill();
+    // wispy soul tendrils floating below
+    g.strokeStyle = 'rgba(100,220,255,0.45)'; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(-3, -2 + bob); g.quadraticCurveTo(-6, 6 + Math.sin(t * 5) * 3, -4, 12); g.stroke();
+    g.beginPath(); g.moveTo(2, -2 + bob); g.quadraticCurveTo(5, 6 - Math.sin(t * 5) * 3, 3, 12); g.stroke();
+    // shadowed phantom hood
+    circ(g, 0, -25 + bob, 6.5, '#121824');
+    // piercing blue soul-fire eyes
+    g.shadowColor = '#64e0ff'; g.shadowBlur = 6;
+    circ(g, -2.2, -25 + bob, 1.8, '#8ff0ff'); circ(g, 2.2, -25 + bob, 1.8, '#8ff0ff');
+    circ(g, -2.0, -25 + bob, 0.8, '#ffffff'); circ(g, 2.4, -25 + bob, 0.8, '#ffffff');
+    g.shadowBlur = 0;
+    g.restore();
   },
   ogre(g, t, mv, e) {
-    rr(g, -9 + mv * 0.5, -14, 7, 14, '#8a6e52'); rr(g, 2 - mv * 0.5, -14, 7, 14, '#8a6e52');
-    rr(g, -10, -16, 20, 4, '#5a3f26');
-    g.fillStyle = '#c9a27e'; g.beginPath(); g.ellipse(0, -26, 12, 12, 0, 0, Math.PI * 2); g.fill();
-    rr(g, -5, -42, 10, 9, '#c9a27e'); rr(g, 2, -39, 2, 2, '#2a2a2a'); rr(g, 0, -35, 5, 1.5, '#6a4a3a'); rr(g, 1, -36, 1, 2, '#f0ead6');
-    if (e && e.warlord) { rr(g, -6, -44, 12, 4, '#6f7380'); tri(g, -6, -44, -10, -50, -4, -44, '#e8e0d0'); tri(g, 6, -44, 10, -50, 4, -44, '#e8e0d0'); }
-    rr(g, 10, -32, 5, 16, '#c9a27e');
-    rr(g, 11, -44, 3, 28, '#6b4423'); rr(g, 9, -50, 7, 9, '#5a3f26');
+    // colossal frame with skin folds, broad belly, and studded leather
+    rr(g, -10 + mv * 0.5, -15, 7.8, 15, '#85664b'); rr(g, 2.5 - mv * 0.5, -15, 7.8, 15, '#85664b');
+    // studded loincloth belt
+    rr(g, -11, -17.5, 22, 4.5, '#4a321e');
+    for (let bx = -9; bx <= 9; bx += 3.5) { g.fillStyle = '#c4c8d0'; circ(g, bx, -15.2, 1.0); }
+    // massive rounded torso with belly contour
+    const ogG = g.createRadialGradient(0, -27, 2, 0, -27, 14);
+    ogG.addColorStop(0, '#d9b48e'); ogG.addColorStop(0.8, '#bf9672'); ogG.addColorStop(1, '#8e6c4e');
+    g.fillStyle = ogG; g.beginPath(); g.ellipse(0, -27, 13.5, 13.5, 0, 0, Math.PI * 2); g.fill();
+    // ogre head with furrowed brow and tusk
+    rrect(g, -6, -44, 11.5, 10, 2.5); g.fillStyle = '#bf9672'; g.fill();
+    g.fillStyle = '#222'; circ(g, 3, -40.5, 2.0); circ(g, 3.4, -40.5, 0.7, '#fff');
+    // tusk with metal ring piercing
+    g.fillStyle = '#f4eedc'; tri(g, 1.5, -37, 3.2, -37, 2.4, -40.5);
+    g.fillStyle = '#e8b84a'; circ(g, 2.4, -38.5, 0.9);
+    if (e && e.warlord) {
+      // Warlord horned battle helm with iron cheek-plates
+      g.fillStyle = '#555b68'; rrect(g, -7, -46.5, 13.5, 4.5, 1); g.fill();
+      g.fillStyle = '#e6dec8';
+      tri(g, -7, -46, -13, -53, -4.5, -46); tri(g, 6.5, -46, 12.5, -53, 4, -46);
+    }
+    // massive studded iron wrist bracer & giant spiked war club
+    rr(g, 11, -33, 5.5, 17, '#bf9672');
+    rr(g, 10.5, -26, 6.2, 3.5, '#555b68'); // studded bracer
+    rr(g, 12, -47, 3.6, 32, '#5a381e');
+    g.fillStyle = '#422814'; rrect(g, 9.5, -54, 9, 12, 2); g.fill();
+    // iron club spikes
+    g.fillStyle = '#c8d0dc';
+    tri(g, 9.5, -52, 6.5, -53, 9.5, -50);
+    tri(g, 18.5, -52, 21.5, -53, 18.5, -50);
+    tri(g, 14, -54, 14, -57, 16, -54);
   },
   dark_knight(g, t, mv) {
-    humanoidBase(g, mv, '#222', '#1f1d26', '#16151b', 31);
-    rr(g, -5, -24, 10, 2, '#3a3646');
-    rr(g, -4.5, -31, 9, 8, '#2a2833'); rr(g, 0, -28, 4.5, 1.5, '#ff2a2a');
-    rr(g, -2, -35, 3, 5, '#a01818');
-    rr(g, 5, -32, 2, 22, '#5a3a8a'); rr(g, 3, -12, 6, 2, '#3a3646');
+    // imposing gothic blackened full plate with fluted edges
+    humanoidBase(g, mv, '#1a1920', '#16141d', '#0e0c12', 32);
+    // fluted breastplate with metallic dark violet sheen
+    const dg = g.createLinearGradient(0, -25, 0, -12);
+    dg.addColorStop(0, '#363244'); dg.addColorStop(0.5, '#221f2b'); dg.addColorStop(1, '#14121a');
+    g.fillStyle = dg; rrect(g, -5.5, -25, 11, 13, 2.5); g.fill();
+    // demonic rune engraving along breastplate
+    g.strokeStyle = '#9040e8'; g.lineWidth = 0.8;
+    g.beginPath(); g.moveTo(0, -24); g.lineTo(0, -14); g.moveTo(-3, -19); g.lineTo(3, -19); g.stroke();
+    // fluted gothic helmet with horizontal glowing crimson visor slit
+    rrect(g, -5.2, -33, 10.4, 9, 2); g.fillStyle = '#221f2b'; g.fill();
+    // piercing crimson visor slit with demonic glow
+    g.fillStyle = '#ff1111'; g.shadowColor = '#ff2222'; g.shadowBlur = 5;
+    rrect(g, 0, -29.5, 5.2, 1.8, 0.5); g.fill();
+    g.fillStyle = '#ffffff'; rrect(g, 1.8, -29.2, 2.0, 0.8, 0.3); g.fill();
+    g.shadowBlur = 0;
+    // darksteel greatsword with carved fuller
+    rr(g, 6, -34, 2.4, 25, '#4a2874');
+    g.fillStyle = '#9050d8'; rr(g, 6.8, -32, 0.8, 18);
   },
   wyvern(g, t) {
-    const fl = Math.sin(t * 10) * 7;
-    tri(g, -4, -10, 6, -10, -2, -22 - fl, '#2f7a6a'); tri(g, -4, -10, 6, -10, -8, -18 - fl * 0.6, '#3f9a85');
-    g.fillStyle = '#3a8a76'; g.beginPath(); g.ellipse(0, -9, 10, 4.5, 0, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = '#3a8a76'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(-9, -9); g.quadraticCurveTo(-16, -6, -18, -11 + Math.sin(t * 5) * 2); g.stroke();
-    rr(g, 8, -13, 7, 5, '#3a8a76'); rr(g, 13, -12, 3, 2, '#2f7a6a'); rr(g, 11, -12, 1.5, 1.5, '#ffeb3b');
-    tri(g, 9, -13, 8, -17, 11, -13, '#e0d8c0');
+    const fl = Math.sin(t * 10) * 7.5;
+    // articulated membranous dragon wings with visible finger struts
+    g.fillStyle = '#225e52';
+    tri(g, -5, -10, 7, -10, -2, -23 - fl);
+    tri(g, -5, -10, 7, -10, -9, -19 - fl * 0.6);
+    // wing bone strut lines
+    g.strokeStyle = '#163d35'; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(0, -10); g.lineTo(-2, -23 - fl); g.moveTo(0, -10); g.lineTo(-9, -19 - fl * 0.6); g.stroke();
+    // serpentine body with gradient
+    const bg = g.createRadialGradient(0, -9, 2, 0, -9, 10);
+    bg.addColorStop(0, '#3f9a85'); bg.addColorStop(1, '#205c4e');
+    g.fillStyle = bg; g.beginPath(); g.ellipse(0, -9.2, 11, 5, 0, 0, Math.PI * 2); g.fill();
+    // whipping tail with venomous barbed stinger
+    g.strokeStyle = '#2b7868'; g.lineWidth = 2.8;
+    g.beginPath(); g.moveTo(-10, -9); g.quadraticCurveTo(-17, -6, -19, -11 + Math.sin(t * 5) * 2.5); g.stroke();
+    tri(g, -19, -11, -23, -15, -20, -7, '#163d35');
+    // horned dragon head with predatory slit eye
+    rrect(g, 8.5, -14, 7.8, 5.5, 1.5); g.fillStyle = '#2b7868'; g.fill();
+    circ(g, 12, -12.5, 1.6, '#ffd700'); circ(g, 12.2, -12.5, 0.6, '#111');
+    tri(g, 9.5, -14, 8.5, -18.5, 11.5, -14, '#e4dcce');
   },
   lich(g, t, mv, e) {
-    g.fillStyle = '#2a2236'; g.beginPath(); g.moveTo(-5, -22); g.lineTo(5, -22); g.lineTo(8, 0); g.lineTo(-8, 0); g.closePath(); g.fill();
-    rr(g, -5, -16, 10, 1.5, '#9be36b');
-    rr(g, -3.5, -29, 7, 7, '#d8d2c0'); rr(g, -2, -27, 2, 2, '#9be36b'); rr(g, 1.5, -27, 2, 2, '#9be36b');
-    rr(g, -4, -31, 8, 2, '#c9a440'); rr(g, -3.5, -33, 1.5, 2, '#c9a440'); rr(g, 2, -33, 1.5, 2, '#c9a440');
-    if (e && e.arch) { g.globalAlpha = 0.25 + Math.sin(t * 3) * 0.1; circ(g, 0, -18, 16, '#9be36b'); g.globalAlpha = 1; }
-    rr(g, 7, -30, 1.5, 30, '#3a3020'); circ(g, 7.7, -31, 2.5, '#9be36b');
+    // ceremonial necromancer robes with necrotic soul runes
+    const lg = g.createLinearGradient(0, -24, 0, 0);
+    lg.addColorStop(0, '#2b2138'); lg.addColorStop(1, '#181222');
+    g.fillStyle = lg; g.beginPath(); g.moveTo(-5.5, -23); g.lineTo(5.5, -23); g.lineTo(9, 0); g.lineTo(-9, 0); g.closePath(); g.fill();
+    // glowing green runic borders
+    g.fillStyle = '#8ce858'; g.fillRect(-6.5, -17, 13, 1.5);
+    for (let rx = -5; rx <= 5; rx += 2.5) circ(g, rx, -6, 0.8, '#8ce858');
+    // ancient skull with burning green soul fire in eye sockets
+    rrect(g, -4.2, -30.5, 8.4, 8.2, 2.2); g.fillStyle = '#ddd5c2'; g.fill();
+    // soul fire eyes
+    g.fillStyle = '#111'; circ(g, -1.8, -27.5, 1.8); circ(g, 2.0, -27.5, 1.8);
+    g.fillStyle = '#8ce858'; g.shadowColor = '#8ce858'; g.shadowBlur = 6;
+    circ(g, -1.6, -27.5, 1.0); circ(g, 2.2, -27.5, 1.0);
+    g.shadowBlur = 0;
+    // filigreed golden circlet / crown
+    g.fillStyle = '#d4af37';
+    rrect(g, -4.5, -32.5, 9, 2.2, 0.6); g.fill();
+    tri(g, -3.5, -32.5, -2, -36, -0.5, -32.5); tri(g, 0.5, -32.5, 2, -36, 3.5, -32.5);
+    if (e && e.arch) {
+      // Archlich hovering soul aura
+      g.save(); g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = 0.28 + Math.sin(t * 3) * 0.12; circ(g, 0, -18, 17, '#7bd34a');
+      g.restore();
+    }
+    // gnarled necromancer staff with flaming green skull
+    rr(g, 7.5, -32, 1.8, 32, '#382b1c');
+    circ(g, 8.4, -33, 3.2, '#7bd34a'); circ(g, 8.4, -33, 1.8, '#ffffff');
   },
   drake(g, t, mv, e) {
     const gold = e && e.goldDragon, magma = e && e.magma;
-    const body = gold ? '#e0a82a' : magma ? '#3a2422' : '#b8322a', belly = gold ? '#ffe08a' : magma ? '#ff8a1f' : '#e8a050',
-      wing = gold ? '#c48a1c' : magma ? '#5a1e14' : '#8a2018', dark = gold ? '#8a5a10' : magma ? '#ff5a14' : '#5a1410';
-    const fl = Math.sin(t * (gold ? 5 : 8)) * 8;
-    tri(g, -6, -12, 8, -12, -2, -30 - fl, wing); tri(g, -6, -12, 8, -12, -14, -24 - fl * 0.6, shade(wing, 1.15));
-    g.strokeStyle = body; g.lineWidth = 3; g.beginPath(); g.moveTo(-10, -10); g.quadraticCurveTo(-20, -4, -24, -12 + Math.sin(t * 4) * 3); g.stroke();
-    tri(g, -24, -12, -28, -15, -25, -8, dark);
-    g.fillStyle = body; g.beginPath(); g.ellipse(0, -10, 13, 6, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = belly; g.beginPath(); g.ellipse(1, -7, 10, 3, 0, 0, Math.PI * 2); g.fill();
-    rr(g, 10, -18, 4, 8, body);
-    rr(g, 12, -21, 9, 6, body); rr(g, 19, -19, 4, 3, body); rr(g, 16, -20, 1.5, 1.5, '#ffeb3b');
-    tri(g, 13, -21, 12, -26, 16, -21, dark); tri(g, 16, -21, 16, -25, 18, -21, dark);
-    rr(g, -6 + mv, -5, 3, 5, dark); rr(g, 5 - mv, -5, 3, 5, dark);
-    if (e && e.breathing) { g.globalAlpha = 0.7; circ(g, 24, -17, 3, '#ffcc4a'); g.globalAlpha = 1; }
+    const body = gold ? '#e8b832' : magma ? '#382220' : '#c2382c',
+      belly = gold ? '#fff0a0' : magma ? '#ff8c24' : '#e89e52',
+      wing = gold ? '#d49b20' : magma ? '#5c1e14' : '#96251c',
+      dark = gold ? '#9a6c12' : magma ? '#ff5510' : '#681812';
+    const fl = Math.sin(t * (gold ? 5 : 8)) * 8.5;
+    // membranous wings with articulated finger struts and realistic translucency
+    tri(g, -7, -13, 9, -13, -2, -32 - fl, wing);
+    tri(g, -7, -13, 9, -13, -15, -25 - fl * 0.6, shade(wing, 1.15));
+    g.strokeStyle = dark; g.lineWidth = 1.4;
+    g.beginPath(); g.moveTo(0, -13); g.lineTo(-2, -32 - fl); g.moveTo(0, -13); g.lineTo(-15, -25 - fl * 0.6); g.stroke();
+    // muscular serpentine neck and tail
+    g.strokeStyle = body; g.lineWidth = 3.6;
+    g.beginPath(); g.moveTo(-11, -10); g.quadraticCurveTo(-21, -4, -25, -13 + Math.sin(t * 4) * 3); g.stroke();
+    tri(g, -25, -13, -29, -16, -26, -9, dark); // tail spade
+    // scaled body with segmented ventral scutes (belly plates)
+    const dg = g.createRadialGradient(0, -10, 2, 0, -10, 14);
+    dg.addColorStop(0, shade(body, 1.25)); dg.addColorStop(1, body);
+    g.fillStyle = dg; g.beginPath(); g.ellipse(0, -10.5, 14, 6.8, 0, 0, Math.PI * 2); g.fill();
+    // segmented belly plates
+    g.fillStyle = belly; g.beginPath(); g.ellipse(1, -7.5, 11, 3.4, 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = dark; g.lineWidth = 0.6;
+    for (let sx = -7; sx <= 9; sx += 3.2) { g.beginPath(); g.moveTo(sx, -9); g.lineTo(sx, -6); g.stroke(); }
+    // horned dragon head with scaly snout and predatory eye
+    rr(g, 10.5, -19, 4.5, 9, body);
+    rrect(g, 12.5, -22.5, 10, 6.8, 1.8); g.fillStyle = body; g.fill();
+    circ(g, 17, -21, 1.8, '#ffea22'); circ(g, 17.2, -21, 0.7, '#111');
+    // horns with ridge texture
+    tri(g, 13.5, -22.5, 12, -28, 16.5, -22.5, dark);
+    tri(g, 17, -22.5, 17, -27, 19.5, -22.5, dark);
+    // talons
+    rr(g, -6 + mv, -5.5, 3.4, 5.5, dark); rr(g, 5.5 - mv, -5.5, 3.4, 5.5, dark);
+    if (e && e.breathing) {
+      g.save(); g.globalCompositeOperation = 'lighter';
+      circ(g, 25, -18, 5, 'rgba(255,180,40,0.6)');
+      circ(g, 25, -18, 2.5, '#ffffff');
+      g.restore();
+    }
+    if (gold) {
+      // Aurex specular gold scale reflections
+      g.fillStyle = 'rgba(255,255,255,0.45)';
+      circ(g, 3, -12, 1.4); circ(g, -4, -13, 1.2); circ(g, 16, -21.5, 0.9);
+    }
   },
 };
 SPRITES.goblin_king = function (g, t, mv) {
-  g.fillStyle = '#7a1f2a'; g.beginPath(); g.moveTo(-4, -13); g.lineTo(-9, 0); g.lineTo(-2, -2); g.closePath(); g.fill();
+  g.fillStyle = '#8a1f2a'; g.beginPath(); g.moveTo(-5, -14); g.lineTo(-11, 0); g.lineTo(-2, -2); g.closePath(); g.fill();
   SPRITES.goblin(g, t, mv);
-  rr(g, -4, -23, 9, 3, '#f5cc45'); rr(g, -4, -25, 2, 2, '#f5cc45'); rr(g, -0.5, -26, 2, 3, '#f5cc45'); rr(g, 3, -25, 2, 2, '#f5cc45'); rr(g, 0, -24, 1, 1, '#d8333a');
+  // filigreed golden crown with ruby gems and royal ermine fur mantle
+  rr(g, -4.5, -24.5, 10, 3.5, '#ffd700');
+  tri(g, -4.5, -24.5, -3.5, -28.5, -2, -24.5, '#ffd700');
+  tri(g, -0.8, -24.5, 0.5, -29.5, 1.8, -24.5, '#ffd700');
+  tri(g, 3, -24.5, 4.5, -28.5, 5.5, -24.5, '#ffd700');
+  circ(g, 0.5, -24, 1.2, '#d8223a'); // center ruby
 };
 SPRITES.witch_queen = (g, t, mv, e) => SPRITES.witch(g, t, mv, {queen:true});
 SPRITES.ogre_warlord = (g, t, mv, e) => SPRITES.ogre(g, t, mv, {warlord:true});
 SPRITES.archlich = (g, t, mv, e) => SPRITES.lich(g, t, mv, {arch:true});
 SPRITES.gold_dragon = (g, t, mv, e) => SPRITES.drake(g, t, mv, {goldDragon:true, breathing:e && e.breathing});
 SPRITES.orc_warchief = function (g, t, mv) {
-  // red war-cape, then the orc, then a horned iron helm and a skull pauldron
-  g.fillStyle = '#8a1f1f'; g.beginPath(); g.moveTo(-5, -22); g.lineTo(-10, 0); g.lineTo(-1, -3); g.closePath(); g.fill();
+  g.fillStyle = '#9c1c1c'; g.beginPath(); g.moveTo(-6, -23); g.lineTo(-12, 0); g.lineTo(-1, -3); g.closePath(); g.fill();
   SPRITES.orc(g, t, mv);
-  rr(g, -6, -31, 12, 4, '#5d616b'); rr(g, -6, -27.5, 12, 1, '#3a3d44');
-  tri(g, -6, -30, -11, -37, -4, -31, '#e8e0d0'); tri(g, 6, -30, 11, -37, 4, -31, '#e8e0d0');
-  rr(g, -7, -22, 4, 3, '#e6e0cf'); rr(g, -6, -21, 1, 1, '#1a1a1a');
+  // heavy horned iron helm with ridge texture and skull pauldron
+  rr(g, -6.5, -32.5, 13, 4.5, '#5d616b');
+  tri(g, -6.5, -31.5, -12.5, -39, -4.5, -32.5, '#ded6c4');
+  tri(g, 6.5, -31.5, 12.5, -39, 4.5, -32.5, '#ded6c4');
+  circ(g, -7.5, -22.5, 2.5, '#ded6c4'); circ(g, -7.5, -22.5, 1.0, '#111'); // skull pauldron
 };
 SPRITES.bloodmoon_alpha = function (g, t, mv) {
-  // a blood-red moon halo behind the werewolf, and glowing red eyes
-  g.globalAlpha = 0.22 + Math.sin(t * 2) * 0.06; circ(g, -2, -28, 11, '#ff2a3a'); g.globalAlpha = 1;
+  // blood-red moon halo behind the alpha werewolf
+  g.save(); g.globalCompositeOperation = 'lighter';
+  g.globalAlpha = 0.28 + Math.sin(t * 2.5) * 0.08; circ(g, -2, -28, 13, '#ff2233');
+  g.restore();
   SPRITES.werewolf(g, t, mv);
-  g.globalAlpha = 0.35; rr(g, -6, -23, 12, 13, '#3a0a10'); g.globalAlpha = 1;
-  rr(g, 2, -28, 2, 1.8, '#ff2a3a'); rr(g, -3, -21, 1, 6, '#c8c0b0'); rr(g, -1, -21, 1, 5, '#c8c0b0');
+  // glowing blood-red predatory eyes and battle scars
+  g.fillStyle = '#ff1122'; circ(g, 2.5, -29.2, 1.9); circ(g, 2.8, -29.2, 0.7, '#fff');
+  g.strokeStyle = '#c81818'; g.lineWidth = 0.8;
+  g.beginPath(); g.moveTo(4, -28); g.lineTo(7.5, -26); g.stroke();
 };
 SPRITES.magma_wyrm = function (g, t, mv, e) {
   SPRITES.drake(g, t, mv, {magma:true, breathing:e && e.breathing});
-  // glowing cracks
-  g.globalAlpha = 0.6 + Math.sin(t * 4) * 0.3;
-  rr(g, -6, -12, 4, 1, '#ffb030'); rr(g, 2, -14, 5, 1, '#ffb030'); rr(g, -2, -9, 3, 1, '#ffd060');
-  g.globalAlpha = 1;
+  // incandescent molten lava veins cracking across volcanic obsidian scales
+  g.save(); g.globalCompositeOperation = 'lighter';
+  g.globalAlpha = 0.75 + Math.sin(t * 4.5) * 0.25;
+  g.strokeStyle = '#ff9020'; g.lineWidth = 1.2;
+  g.beginPath(); g.moveTo(-7, -13); g.lineTo(-3, -11); g.lineTo(3, -13); g.lineTo(8, -10); g.stroke();
+  g.strokeStyle = '#ffee60'; g.lineWidth = 0.6;
+  g.beginPath(); g.moveTo(-4, -12); g.lineTo(2, -12.5); g.stroke();
+  g.restore();
 };
 
 // ===== Projectiles =====

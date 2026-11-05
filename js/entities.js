@@ -883,6 +883,41 @@ function updateProjectiles(dt) {
   lures = lures.filter(l => l.t > 0);
 }
 
+// How many players are currently in the game/lobby (solo = 1, co-op = host + connected peers)
+function lobbyPlayerCount() {
+  if (typeof NET !== 'undefined' && NET && NET.on) {
+    const peers = NET.peers ? NET.peers.size : 0;
+    return Math.max(1, 1 + peers);
+  }
+  return 1;
+}
+
+// Boss scaling:
+// - Reduce base health by 20% (0.8x base)
+// - Reduce base damage by 30% (0.7x base)
+// - Scales accordingly with player count in lobby:
+//   Health scales +60% per additional player (1p = 0.8x, 2p = 1.28x, 3p = 1.76x)
+//   Damage scales +15% per additional player (1p = 0.7x, 2p = 0.805x, 3p = 0.91x)
+function bossScaling() {
+  const p = lobbyPlayerCount();
+  const hpMult = 0.8 * (1 + (p - 1) * 0.60);
+  const dmgMult = 0.7 * (1 + (p - 1) * 0.15);
+  return { hp: hpMult, dmg: dmgMult, players: p };
+}
+
+function checkBossLobbyScaling(e) {
+  if (!e || e.dead || !e.baseHp) return;
+  const p = lobbyPlayerCount();
+  if (e.lobbyPlayers !== p) {
+    const bs = bossScaling();
+    const ratio = e.maxHp > 0 ? e.hp / e.maxHp : 1;
+    e.lobbyPlayers = p;
+    e.maxHp = Math.max(50, Math.round(e.baseHp * bs.hp));
+    e.hp = Math.max(1, Math.round(e.maxHp * ratio));
+    e.dmg = Math.max(1, Math.round(e.baseDmg * bs.dmg));
+  }
+}
+
 // ===== Bosses =====
 const BOSS_BASE = {goblin_king:'goblin', witch_queen:'witch', ogre_warlord:'ogre', archlich:'lich', gold_dragon:'drake',
   orc_warchief:'orc', bloodmoon_alpha:'werewolf', magma_wyrm:'drake'};
@@ -893,7 +928,13 @@ function summonBoss(bid) {
   const sc = bid === 'gold_dragon' ? b.w / base.w : b.h / base.h;
   const e = {id:nextEnemyId++, type:bid, look:bid, boss:true, bid, def:{name:b.name}, name:b.name, w:b.w, h:b.h, sc, vx:0, vy:0, facing:-1, onGround:false,
     lvl:b.lvl, t:0, seed:0, flash:0, atkCd:0, kbRes:0, state:'intro', stT:1.5, shootT:2, summonT:8, slowT:0, rootT:0, stunT:0, curseT:0, poisonT:0, burnT:0, dotTick:0.5};
-  e.maxHp = enemyHp(b.hp, b.lvl) * diff().hp; e.hp = e.maxHp; e.dmg = enemyDmg(b.dmg, b.lvl) * diff().dmg;
+  const bs = bossScaling();
+  e.baseHp = enemyHp(b.hp, b.lvl) * diff().hp;
+  e.baseDmg = enemyDmg(b.dmg, b.lvl) * diff().dmg;
+  e.maxHp = Math.max(50, Math.round(e.baseHp * bs.hp));
+  e.hp = e.maxHp;
+  e.dmg = Math.max(1, Math.round(e.baseDmg * bs.dmg));
+  e.lobbyPlayers = bs.players;
   const ax = b.x * TILE;
   if (bid === 'gold_dragon') { e.x = (CASTLE.x1 - 30) * TILE; e.y = (CASTLE.top + 8) * TILE; }
   else if (bossPattern(bid) === 'witch_queen' || bossPattern(bid) === 'archlich') { e.x = ax + 120; e.y = (surf[b.x] - 8) * TILE; e.fly = true; }
@@ -955,6 +996,7 @@ function updateBoss(e, dt) {
   if (!p) { despawnBoss(false); return; }
   const dx = ecx(p) - ecx(e), dy = ecy(p) - ecy(e), dist = Math.hypot(dx, dy);
   if (dist > 1500) { despawnBoss(false); return; }
+  checkBossLobbyScaling(e);
   updateBossBar(e);
   const rage = e.hp < e.maxHp * 0.5;
   const frozen = e.stunT > 0;
@@ -1187,9 +1229,9 @@ function makeMiniBoss(m) {
   const sc = 1.6;
   e.sc = sc; e.w = d.w * sc; e.h = d.h * sc;
   e.name = m.name; e.mini = m.id; e.miniDef = m;
-  const D = diff();
-  e.maxHp = enemyHp(d.hp, m.lvl) * ENEMY_HEALTH * 8 * D.hp; e.hp = e.maxHp;
-  e.dmg = enemyDmg(d.dmg, m.lvl) * 1.6 * D.dmg;
+  const D = diff(), bs = bossScaling();
+  e.maxHp = Math.max(30, Math.round(enemyHp(d.hp, m.lvl) * ENEMY_HEALTH * 8 * D.hp * bs.hp)); e.hp = e.maxHp;
+  e.dmg = Math.max(1, Math.round(enemyDmg(d.dmg, m.lvl) * 1.6 * D.dmg * bs.dmg));
   e.xp = Math.round(enemyXp(m.lvl, d.xpm) * 10 * D.reward);
   e.coins = Math.round(d.coins * (1 + m.lvl * 0.25) * 10 * D.reward);
   e.kbRes = 0.25; e.skillT = 4;
