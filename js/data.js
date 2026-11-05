@@ -115,6 +115,12 @@ it('pot_m2', {name:'Mana Potion', kind:'potion', mana:0.4, col:'#2f5be8', desc:'
 it('pot_m3', {name:'Greater Mana Potion', kind:'potion', mana:0.6, col:'#6a4bff', desc:'Restores 60% mana.'});
 it('pot_m4', {name:'Arcane Elixir', kind:'potion', mana:1, col:'#b04bff', desc:'Restores all mana.'});
 it('gold_lure', {name:'Gold Lure', kind:'lure', stack:10, col:'#f5cc45', desc:'Throw it. The Gilded Wyrm cannot resist gold: it stops to admire it and takes 50% more damage.'});
+// Boss summons: craft one and use it (left click) to call a boss. `summons` is the boss it calls
+// (a key in BOSSES); null means that boss hasn't been added yet, so using it does nothing and keeps the item.
+it('summon_totem', {name:'Ominous Totem', kind:'summon', stack:5, shape:'totem', col:'#8a5ab8', summons:null,
+  desc:'A carved totem that hums with dark power. Use it to summon a boss. It crumbles once the boss appears.'});
+it('summon_crown', {name:'Cursed Crown', kind:'summon', stack:5, shape:'crown', col:'#c8a040', summons:null,
+  desc:'A tarnished crown that whispers in the dark. Use it to summon a mighty boss. It shatters once the boss appears.'});
 
 // ===== Weapons =====
 const WTYPE = {
@@ -391,6 +397,9 @@ const RECIPES = [
   {out:'armor_mythril', n:1, st:'anvil', in:[['mythril_bar',18],['gold_bar',4]]},
   {out:'armor_dragon', n:1, st:'anvil', in:[['dragonscale',12],['obsidian',15],['mythril_bar',8]]},
   {out:'gold_lure', n:1, st:'anvil', in:[['gold_bar',5]]},
+  // boss summons
+  {out:'summon_totem', n:1, st:'anvil', in:[['wood',20],['iron_bar',6],['herb_swamp',4]]},
+  {out:'summon_crown', n:1, st:'anvil', in:[['gold_bar',10],['mythril_bar',6],['dragonscale',4]]},
   // weapons
   {out:'iron_sword', n:1, st:'anvil', in:[['iron_bar',8],['wood',3]]},
   {out:'iron_dagger', n:1, st:'anvil', in:[['iron_bar',5],['wood',1]]},

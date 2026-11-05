@@ -218,6 +218,7 @@ function handleUse(dt) {
     case 'block': if (placeCd <= 0 && reach) placeBlock(tx, ty, item, slot); break;
     case 'potion': if (pressed) drinkPotion(slot); break;
     case 'lure': if (pressed) throwLure(slot); break;
+    case 'summon': if (pressed) useSummonItem(slot); break;
   }
 }
 // Holding a wand: the wand always points at your cursor (or your smart-aim target),

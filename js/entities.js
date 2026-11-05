@@ -627,6 +627,19 @@ function shootPowerArrow(item, rare) {
 function addProj(o) {
   projectiles.push(Object.assign({life:1, r:3, grav:0, bounces:0, pierce:false, hit:null}, o));
 }
+// Boss summon items (Ominous Totem, Cursed Crown). The item is only used up once its boss appears.
+function useSummonItem(slot) {
+  const p = player, it = ITEMS[slot.id], bid = it.summons;
+  if (p.dead) return;
+  if (G.time - (p.summonMsgT || -9) < 1) return; // one try per second
+  p.summonMsgT = G.time;
+  addParticles(ecx(p), p.y + 4, it.col, 18, 90, 0.6, -60);
+  if (!bid || !BOSSES[bid]) { toast(`The ${it.name} hums softly... but nothing answers yet. Its boss is still on the way!`, 'blue'); return; }
+  if (G.boss) { toast('A boss is already here!'); return; }
+  if (NET.on && !NET.host) netSend('host', {k:'summon', bid}); else summonBoss(bid);
+  consumeSlot(slot, 1);
+  toast(`The ${it.name} crumbles to dust. Something is coming...`, 'red');
+}
 function throwLure(slot) {
   const p = player, a = aimAngle();
   addProj({x:ecx(p), y:p.y + 8, vx:Math.cos(a) * 320, vy:Math.sin(a) * 320 - 80, type:'lure', dmg:0, owner:'n', life:4, r:4, grav:700});

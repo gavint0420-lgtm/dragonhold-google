@@ -438,6 +438,18 @@ function iconFor(id) {
     rr(g, -9, -8, 18, 2, shade(it.col, 1.3)); rr(g, -1, -6, 2, 12, shade(it.col, 0.75)); rr(g, -9, 4, 18, 2, shade(it.col, 0.7));
   } else if (it.kind === 'lure') {
     circ(g, -4, 4, 5, '#c49a1c'); circ(g, 4, 4, 5, '#d9ae2a'); circ(g, 0, -2, 6, '#f5cc45'); circ(g, -2, -4, 2, '#fff2a8');
+  } else if (it.shape === 'totem') {
+    // a carved wooden totem with a purple-glowing face and feathers
+    rr(g, -5, -11, 10, 22, '#6b4423'); rr(g, -5, -11, 2, 22, '#8a5c32'); rr(g, 3, -11, 2, 22, '#4a2e17');
+    rr(g, -7, -3, 14, 3, '#53341a'); rr(g, -8, -13, 4, 5, it.col); rr(g, 4, -13, 4, 5, '#d8333a');
+    rr(g, -3, -8, 2, 2, '#e0b0ff'); rr(g, 1, -8, 2, 2, '#e0b0ff'); rr(g, -2, -4, 4, 1, '#2a1a10');
+    rr(g, -3, 3, 6, 2, '#2a1a10'); rr(g, -2, 6, 4, 4, it.col); rr(g, -1, 7, 2, 2, '#e0b0ff');
+  } else if (it.shape === 'crown') {
+    // a tarnished gold crown with dark, glowing gems
+    g.fillStyle = it.col; g.beginPath(); g.moveTo(-11, 7); g.lineTo(-11, -6); g.lineTo(-6, 0); g.lineTo(0, -9); g.lineTo(6, 0); g.lineTo(11, -6); g.lineTo(11, 7); g.closePath(); g.fill();
+    rr(g, -11, 4, 22, 4, '#8a6a20'); rr(g, -11, 4, 22, 1, '#e8c860');
+    circ(g, 0, -9, 2, '#e8c860'); circ(g, -11, -6, 1.6, '#e8c860'); circ(g, 11, -6, 1.6, '#e8c860');
+    circ(g, 0, 1, 2.5, '#5a1020'); circ(g, -6, 3, 1.8, '#3a1a6a'); circ(g, 6, 3, 1.8, '#3a1a6a'); rr(g, -1, 0, 1, 1, '#ff6a8a');
   } else if (it.shape === 'ore') {
     g.fillStyle = '#6d6f78'; g.beginPath(); g.moveTo(-9, 6); g.lineTo(-6, -7); g.lineTo(5, -9); g.lineTo(10, 2); g.lineTo(3, 9); g.closePath(); g.fill();
     rr(g, -4, -3, 4, 4, it.col); rr(g, 2, 1, 3, 3, it.col); rr(g, -1, -6, 3, 2, it.col);
@@ -589,6 +601,7 @@ function itemInfoHTML(id, rare) {
   } else if (it.kind === 'tool') h += `<div class="tt-sub">Pickaxe · Power ${it.power}</div>`;
   else if (it.kind === 'armor') h += `<div class="tt-sub">Armor · right-click to equip</div>`;
   else if (it.kind === 'potion') h += `<div class="tt-sub">Potion · right-click or select and click to drink</div>`;
+  else if (it.kind === 'summon') h += `<div class="tt-sub">Boss summon · select it and click to use</div><div class="tt-fx">${it.summons && BOSSES[it.summons] ? `Summons <b>${BOSSES[it.summons].name}</b>` : 'Its boss is coming soon!'}</div>`;
   else if (it.kind === 'block') h += `<div class="tt-sub">Block · select it and click to place</div>`;
   if (it.desc) h += `<div class="tt-desc">${it.desc}</div>`;
   return h;
