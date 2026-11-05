@@ -4,6 +4,8 @@ Dragonhold is a 2D side-view sandbox action game (mining, building, crafting, bo
 
 The owner is a young player who asks for features in short messages. Keep explanations simple, test everything you change, and don't break existing saves.
 
+Two AI agents work on this project through its GitHub repository. Follow `AGENTS.md`: pull before you change anything, make one tested change, then commit and push it right away. On the owner's computer the project lives in `C:\Users\gavin\Dragonhold`.
+
 ## Run it
 
 - **Solo, no server:** open `index.html` in Chrome or Edge. Saving uses `localStorage`. Co-op is disabled from `file://`.
