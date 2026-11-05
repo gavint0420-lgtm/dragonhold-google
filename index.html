@@ -80,6 +80,11 @@ a.btn { display: block; text-align: center; text-decoration: none; box-sizing: b
 .slot.sel { border-color: var(--gold); box-shadow: 0 0 10px rgba(232,184,74,0.5); }
 .slot.rare { background: radial-gradient(circle, rgba(232,184,74,0.28), rgba(18,14,22,0.9) 70%); }
 .slot .ph { font-size: 11px; color: var(--muted); }
+.slot img.locked { opacity: 0.4; filter: grayscale(0.8); }
+.slot .lock { position: absolute; right: 2px; top: 1px; font-size: 11px; line-height: 1; pointer-events: none; }
+.tt-class { font-size: 12px; margin: 2px 0; }
+.tt-class.ok { color: #9be36b; }
+.tt-class.no { color: #ff7777; font-weight: 700; }
 #toasts { position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); bottom: calc(80px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 4px; max-width: min(420px, 60vw); pointer-events: none; }
 .toast { background: rgba(18,14,22,0.88); border-left: 3px solid var(--muted); padding: 6px 10px; border-radius: 0 4px 4px 0; font-size: 14px; transition: opacity 0.4s, transform 0.4s; }
 .toast.gold { border-color: var(--gold); color: #ffe7a8; }

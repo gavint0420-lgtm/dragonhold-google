@@ -180,6 +180,93 @@ wpn('bloodmoon_claw', 'Bloodmoon Claw', 'dagger', 35, {fx:'bloodmoon', col:'#e04
 wpn('magma_fang', 'Magma Fang', 'sword', 72, {fx:'eruption', col:'#ff7a1a', fxName:'Eruption', fxDesc:'Sets enemies on fire, and every 3rd hit erupts in a blast of magma around them.', boss:true});
 wpn('hoardbreaker', "Aurex's Hoardbreaker", 'sword', 120, {fx:'midas', col:'#f5cc45', fxName:'Midas Touch', fxDesc:'Every swing flings bouncing gold coins, and enemies you slay drop double gold.', boss:true});
 
+// ===== Class loot =====
+// Every weapon belongs to one class: Knight = swords and maces, Rogue = daggers and bows, Wizard = wands.
+// Only that class can fight with it. Enemies and bosses drop the version for YOUR class.
+const WEAPON_CLASS = {sword:'sword', mace:'sword', dagger:'dagger', bow:'dagger', wand:'wand'};
+// Knight drops
+wpn('goblin_hacker', 'Goblin Hacker', 'sword', 11, {fx:'slow', col:'#9aa05a', fxName:'Jagged Edge', fxDesc:'30% chance to slow enemies by 40% for 2s.'});
+wpn('hexed_mace', 'Hexed Morningstar', 'mace', 32, {fx:'poison', col:'#9a5bc0', fxName:'Witchrot', fxDesc:'Stacking poison (up to 5) deals damage over time.'});
+wpn('fang_flail', 'Fang Flail', 'mace', 30, {fx:'knock', col:'#6a8a4a', fxName:'Bonk', fxDesc:'Knocks enemies far back.'});
+wpn('wolfsbane', 'Wolfsbane Sword', 'sword', 26, {fx:'lunar', col:'#b8c8e8', fxName:'Lunar Frenzy', fxDesc:'At night: attacks 35% faster and heal 10% of damage dealt.'});
+wpn('wraithblade', 'Wraithblade', 'sword', 34, {fx:'lifesteal', col:'#8ff0ff', fxName:'Soul Siphon', fxDesc:'Heal 8% of damage dealt. 20% crit chance.'});
+wpn('skyrender', 'Skyrender', 'sword', 56, {fx:'shards', col:'#a0fff0', fxName:'Scale Shards', fxDesc:'Hits spray wyvern scales that hurt nearby enemies.'});
+wpn('grave_mace', "Lich-Bone Mace", 'mace', 84, {fx:'regen', col:'#b8ff9a', fxName:'Grave Pulse', fxDesc:'Each hit heals 3% of your max health.'});
+// Rogue drops
+wpn('ratbone_bow', 'Ratbone Shortbow', 'bow', 11, {fx:'slow', col:'#c8a080', fxName:'Gnawing Shot', fxDesc:'Arrows slow enemies by 40% for 2s.'});
+wpn('bone_bow', 'Bone Bow', 'bow', 15, {fx:'stun', col:'#ece5cf', fxName:'Rattling Shot', fxDesc:'Arrows briefly stun enemies.'});
+wpn('orc_shiv', 'Orcish Shiv', 'dagger', 13, {fx:'bloodrage', col:'#7c8a5a', fxName:'Bloodrage', fxDesc:'Up to +100% damage the lower your health is.'});
+wpn('hexwood_bow', 'Hexwood Bow', 'bow', 22, {fx:'curse', col:'#b05be0', fxName:'Hexed Arrows', fxDesc:'Cursed enemies take 25% more damage from everything for 5s.'});
+wpn('troll_bow', 'Troll-Gut Longbow', 'bow', 32, {fx:'slow', col:'#9aa58a', fxName:'Heavy String', fxDesc:'Arrows slow enemies by 40% for 2s.'});
+wpn('ghostglass_bow', 'Ghostglass Bow', 'bow', 30, {fx:'lifesteal', col:'#8ff0ff', fxName:'Soul Arrows', fxDesc:'Arrows heal you for 8% of the damage they deal.'});
+wpn('ogre_warbow', 'Ogre Warbow', 'bow', 46, {fx:'stun', col:'#7a6a55', fxName:'Boulder Shot', fxDesc:'Arrows briefly stun enemies.'});
+wpn('shadow_stiletto', 'Shadow Stiletto', 'dagger', 36, {fx:'dash', col:'#5a3a8a', fxName:'Shadow Step', fxDesc:'Attacks dash you through enemies. You cannot be hurt mid-dash.'});
+wpn('skyhunter_bow', 'Skyhunter Bow', 'bow', 54, {fx:'stun', col:'#a0fff0', fxName:'Gale Shot', fxDesc:'Arrows briefly stun enemies.'});
+wpn('soulpiercer', 'Soulpiercer', 'dagger', 46, {fx:'poison', col:'#b8ff9a', fxName:'Grave Poison', fxDesc:'Stacking poison (up to 5) deals damage over time.'});
+wpn('drakescale_bow', 'Drakescale Bow', 'bow', 64, {fx:'burn', col:'#ff7a3a', fxName:'Dragonfire', fxDesc:'Flaming arrows set enemies on fire.'});
+// Wizard drops
+wpn('goblin_twig', 'Goblin Twig Wand', 'wand', 9, {fx:'slow', mana:2, cd:0.42, proj:'spark', col:'#a8c060', fxName:'Sticky Sparks', fxDesc:'Sparks slow enemies by 40% for 2s.'});
+wpn('squeaky_wand', 'Squeaky Wand', 'wand', 10, {fx:'stun', mana:2, cd:0.42, proj:'spark', sparkFx:'stun', col:'#ffd0b0', fxName:'Squeak Zap', fxDesc:'Sparks briefly stun enemies.'});
+wpn('bone_wand', 'Bone Wand', 'wand', 15, {fx:'curse', mana:2, cd:0.45, proj:'hex', col:'#ece5cf', fxName:'Bone Curse', fxDesc:'Cursed enemies take 25% more damage from everything for 5s.'});
+wpn('orc_totem', 'Orc Shaman Totem', 'wand', 19, {fx:'burn', mana:3, cd:0.45, proj:'spark', sparkFx:'burn', col:'#ff9a4a', fxName:'Ember Sparks', fxDesc:'Fiery sparks set enemies ablaze.'});
+wpn('webweaver', 'Webweaver Wand', 'wand', 20, {fx:'root', mana:3, cd:0.45, proj:'spark', sparkFx:'root', col:'#c8ff9a', fxName:'Web Snare', fxDesc:'Sticky sparks hold enemies in place for 2s.'});
+wpn('moon_rod', 'Moonlit Rod', 'wand', 25, {fx:'stun', mana:3, cd:0.4, proj:'spark', sparkFx:'stun', col:'#cfd8ff', fxName:'Moonburst', fxDesc:'Sparks briefly stun enemies.'});
+wpn('mossroot_staff', 'Mossroot Staff', 'wand', 38, {fx:'root', mana:4, cd:0.45, proj:'spark', sparkFx:'root', col:'#7ab85a', fxName:'Mossgrip', fxDesc:'Mossy sparks hold enemies in place for 2s.'});
+wpn('ogre_staff', 'Ogre Shaman Staff', 'wand', 50, {fx:'curse', mana:5, cd:0.45, proj:'hex', col:'#c8a070', fxName:'Curse Bolt', fxDesc:'Cursed enemies take 25% more damage from everything for 5s.'});
+wpn('void_staff', 'Void Staff', 'wand', 58, {fx:'root', mana:6, cd:0.45, proj:'spark', sparkFx:'root', col:'#8a5ae0', fxName:'Void Grasp', fxDesc:'Shadow sparks hold enemies in place for 2s.'});
+wpn('drakefire_staff', 'Drakefire Staff', 'wand', 68, {fx:'burn', mana:6, cd:0.42, proj:'spark', sparkFx:'burn', col:'#ff6a2a', fxName:'Dragonfire', fxDesc:'Fiery sparks set enemies ablaze.'});
+// Boss weapons for the other classes
+wpn('kingsmasher', "Grukk's Kingsmasher", 'mace', 30, {fx:'midas', col:'#f5cc45', fxName:'Royal Greed', fxDesc:'Every swing flings bouncing gold coins, and enemies you slay drop double gold.', boss:true});
+wpn('grukk_slingbow', "Goblin King's Slingbow", 'bow', 18, {fx:'coin', col:'#f5cc45', fxName:'Greed', fxDesc:'Enemies killed by its arrows drop double coins.', boss:true});
+wpn('ironjaw_bow', 'Ironjaw Repeater', 'bow', 22, {fx:'volley', col:'#b8452a', fxName:'Volley', fxDesc:'Fires three arrows at once in a spread.', boss:true});
+wpn('war_totem', "Warchief's War-Totem", 'wand', 28, {fx:'chain', mana:5, cd:0.5, proj:'chain', col:'#ff8a5a', fxName:'War Lightning', fxDesc:'Lightning jumps between up to 5 enemies.', boss:true});
+wpn('briar_blade', 'Briar Greatblade', 'sword', 44, {fx:'cleave', col:'#5fbf4a', fxName:'Thorn Cleave', fxDesc:'A huge sweeping arc that hits everything around you and makes them bleed.', boss:true});
+wpn('nightshade_bow', 'Nightshade Bow', 'bow', 36, {fx:'root', col:'#5fbf4a', fxName:'Bramble Arrows', fxDesc:'Arrows root enemies in place for 2s.', boss:true});
+wpn('fenris_fang', 'Fenris Fang', 'sword', 52, {fx:'bloodmoon', col:'#e0404a', fxName:'Blood Moon', fxDesc:'Always 25% faster (40% at night). Hits bleed and heal you 6% of damage (12% at night).', boss:true});
+wpn('howling_staff', 'Howling Staff', 'wand', 30, {fx:'drain', mana:1, cd:0.12, proj:'beam', col:'#e0404a', fxName:'Moon Drain', fxDesc:'Hold to fire a beam that heals you for 30% of damage dealt.', boss:true});
+wpn('warlord_shank', "Warlord's Shank", 'dagger', 46, {fx:'warcry', col:'#b08a4a', fxName:'Warcry', fxDesc:'Every stab sends stunning shockwaves both ways along the ground.', boss:true});
+wpn('earthshaker', 'Earthshaker Staff', 'wand', 62, {fx:'chain', mana:7, cd:0.5, proj:'chain', col:'#d8b878', fxName:'Quake Lightning', fxDesc:'Lightning jumps between up to 5 enemies.', boss:true});
+wpn('soulstring', 'Soulstring Bow', 'bow', 62, {fx:'raise', col:'#6effc2', fxName:'Raise Dead', fxDesc:'Enemies killed by its arrows rise and fight for you for 10s.', boss:true});
+wpn('phylactery', 'Phylactery Staff', 'wand', 70, {fx:'raise', mana:7, cd:0.42, proj:'skull', col:'#6effc2', fxName:'Soul Skulls', fxDesc:'Homing skulls. Enemies they kill rise and fight for you for 10s.', boss:true});
+wpn('cinderfang', 'Cinderfang', 'dagger', 62, {fx:'eruption', col:'#ff7a1a', fxName:'Eruption', fxDesc:'Sets enemies on fire, and every 3rd hit erupts in a blast of magma around them.', boss:true});
+wpn('pyraxis_staff', "Pyraxis's Staff", 'wand', 78, {fx:'burn', mana:6, cd:0.36, proj:'spark', sparkFx:'burn', col:'#ff7a1a', fxName:'Magma Sparks', fxDesc:'Fast fiery sparks set enemies ablaze.', boss:true});
+wpn('aurex_talon', "Aurex's Talon", 'dagger', 100, {fx:'midas', col:'#f5cc45', fxName:'Midas Touch', fxDesc:'Every stab flings bouncing gold coins, and enemies you slay drop double gold.', boss:true});
+wpn('hoard_scepter', 'Scepter of the Hoard', 'wand', 104, {fx:'coin', mana:6, cd:0.32, proj:'coin', col:'#f5cc45', fxName:'Golden Storm', fxDesc:'Fires bouncing gold coins. Enemies it kills drop double coins.', boss:true});
+// Which weapon each enemy and boss drops for each class: [Knight, Rogue, Wizard]
+const CLASS_DROPS = {
+  goblin:['goblin_hacker', 'rusty_dagger', 'goblin_twig'],
+  rat:['wooden_club', 'ratbone_bow', 'squeaky_wand'],
+  skeleton:['bone_sword', 'bone_bow', 'bone_wand'],
+  orc:['orc_cleaver', 'orc_shiv', 'orc_totem'],
+  witch:['hexed_mace', 'hexwood_bow', 'hex_wand'],
+  spider:['fang_flail', 'venom_dagger', 'webweaver'],
+  werewolf:['wolfsbane', 'moonfang', 'moon_rod'],
+  troll:['bonecrusher', 'troll_bow', 'mossroot_staff'],
+  wraith:['wraithblade', 'ghostglass_bow', 'spectral_wand'],
+  ogre:['ogre_maul', 'ogre_warbow', 'ogre_staff'],
+  dark_knight:['shadow_blade', 'shadow_stiletto', 'void_staff'],
+  wyvern:['skyrender', 'skyhunter_bow', 'storm_wand'],
+  lich:['grave_mace', 'soulpiercer', 'necro_staff'],
+  drake:['dragonfang', 'drakescale_bow', 'drakefire_staff'],
+  goblin_king:['kingsmasher', 'grukk_slingbow', 'coin_scepter'],
+  orc_warchief:['warchief_axe', 'ironjaw_bow', 'war_totem'],
+  witch_queen:['briar_blade', 'nightshade_bow', 'thornroot'],
+  bloodmoon_alpha:['fenris_fang', 'bloodmoon_claw', 'howling_staff'],
+  ogre_warlord:['warlord_hammer', 'warlord_shank', 'earthshaker'],
+  archlich:['soulreaver', 'soulstring', 'phylactery'],
+  magma_wyrm:['magma_fang', 'cinderfang', 'pyraxis_staff'],
+  gold_dragon:['hoardbreaker', 'aurex_talon', 'hoard_scepter'],
+};
+const CLASS_INDEX = {sword:0, dagger:1, wand:2};
+const CLASS_LABEL = {sword:'Knight', dagger:'Rogue', wand:'Wizard'};
+// the weapon an enemy or boss drops for a class (falls back to its old single drop)
+function classDrop(key, cls) {
+  const row = CLASS_DROPS[key], i = CLASS_INDEX[classOf(cls)] || 0;
+  if (row && ITEMS[row[i]]) return row[i];
+  return (EN[key] && EN[key].drop) || (BOSSES[key] && BOSSES[key].drop) || null;
+}
+function weaponClass(item) { return item && item.kind === 'weapon' ? WEAPON_CLASS[item.wt] || null : null; }
+
 // ===== Enemies =====
 const EN = {
   goblin:{name:'Goblin', hp:25, dmg:8, xpm:1, ai:'walker', w:12, h:20, spd:70, drop:'rusty_dagger', coins:2},

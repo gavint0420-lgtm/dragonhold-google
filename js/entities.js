@@ -284,6 +284,16 @@ function updatePlayer(dt) {
 
 // ===== Using items =====
 function weaponDamage(item, rare) { return item.dmg * (rare ? 1.25 : 1) * playerDmgMult(player.level); }
+// ===== Class-locked weapons =====
+function myClass() { return classOf((player && player.heroClass) || (typeof startWeapon !== 'undefined' ? startWeapon : 'sword')) || 'sword'; }
+function canUseWeapon(item) { const c = weaponClass(item); return !c || c === myClass(); }
+// says why you can't use another class's weapon (at most once a second)
+function classLockMsg(item) {
+  const p = player;
+  if (G.time - (p.lockMsgT || -9) < 1) return;
+  p.lockMsgT = G.time;
+  toast(`Only a ${CLASS_LABEL[weaponClass(item)]} can use the ${item.name}.`);
+}
 // ===== Aiming: 'cursor' aims exactly where the mouse is; 'smart' locks onto the best enemy =====
 let aimMode = 'cursor';
 try { if (localStorage.getItem('dragonhold_aim') === 'smart') aimMode = 'smart'; } catch (e) {}
@@ -329,6 +339,7 @@ function aimAngle() {
 }
 function attack(item, slot) {
   const p = player, wt = WTYPE[item.wt];
+  if (!canUseWeapon(item)) { classLockMsg(item); return; }
   let cd = item.cd || wt.cd;
   if (item.fx === 'lunar' && isNight()) cd *= 0.65;
   if (item.fx === 'bloodmoon') cd *= isNight() ? 0.6 : 0.75;
@@ -436,6 +447,7 @@ function enemyFx(e, fx, rare, base) {
 const BURST_COOLDOWN = 4, BURST_DAMAGE = 3, BURST_RADIUS = 64;
 function burstWait() { const p = player, last = p.burstAt; return last == null || last > G.time ? 0 : Math.max(0, BURST_COOLDOWN - (G.time - last)); }
 function castBurst(item, rare) {
+  if (!canUseWeapon(item)) { classLockMsg(item); return; }
   const p = player, cost = Math.max(4, (item.mana || 2) * 2);
   const wait = burstWait();
   if (wait > 0) { if (G.time - (p.burstMsgT || -9) > 0.8) { toast(`Arcane Burst is recharging (${wait.toFixed(1)}s).`); p.burstMsgT = G.time; } return; }
@@ -541,10 +553,12 @@ function shootBow(item, rare) {
   if (item.fx === 'steady' && p.hp >= p.maxHp - 0.5) dmg *= rare ? 1.25 : 1.15;
   if (crit) dmg *= 2;
   const speed = 600;
-  addProj({
+  // Volley bows fire three arrows in a spread
+  const spread = item.fx === 'volley' ? [-0.12, 0, 0.12] : [0];
+  for (const da of spread) addProj({
     x: sx, y: sy,
-    vx: Math.cos(a) * speed,
-    vy: Math.sin(a) * speed,
+    vx: Math.cos(a + da) * speed,
+    vy: Math.sin(a + da) * speed,
     type: 'arrow',
     dmg,
     owner: 'p',
@@ -562,6 +576,7 @@ function shootBow(item, rare) {
 }
 
 function shootPowerArrow(item, rare) {
+  if (!canUseWeapon(item)) { classLockMsg(item); return; }
   const p = player;
   const wait = powerShotWait();
   if (wait > 0) {
@@ -634,6 +649,7 @@ function applyProjFx(e, fx, rare) {
     case 'root': if (!e.boss) e.rootT = rare ? 3 : 2; else e.slowT = 2; break;
     case 'raise': e.raiseMark = G.time; break;
     case 'coin': e.coinMark = G.time; break;
+    case 'dragonfire': // flaming arrows (Dragonbreath Bow) burn like fire sparks
     case 'burn': e.burnT = 3; e.burnDps = Math.max(e.burnDps || 0, weaponDamage(ITEMS.dragonfang, rare) * 0.2); break;
     case 'stun': if (!e.boss) e.stunT = Math.max(e.stunT || 0, 0.4); break;
     case 'slow': e.slowT = rare ? 3 : 2; break;
@@ -666,12 +682,14 @@ function rewardKill(info) {
   questEvent('kill', info.type, 1);
   const d = EN[info.type];
   if (!d) return;
-  if (d.drop) {
+  // each player gets the weapon for their own class (Knight, Rogue or Wizard)
+  const drop = classDrop(info.type, myClass());
+  if (drop) {
     G.pity[info.type] = (G.pity[info.type] || 0) + 1;
     if (info.elite || Math.random() < 0.07 || G.pity[info.type] >= 14) {
       G.pity[info.type] = 0;
       const rare = Math.random() < (info.mini ? 0.5 : info.elite ? 0.3 : 0.04);
-      if (addItem(d.drop, 1, rare)) toast(`${info.name} dropped ${rare ? 'a RARE ' : ''}${ITEMS[d.drop].name}!`, rare ? 'gold' : 'loot');
+      if (addItem(drop, 1, rare)) toast(`${info.name} dropped ${rare ? 'a RARE ' : ''}${ITEMS[drop].name}!`, rare ? 'gold' : 'loot');
     }
   }
   if (info.mini) {
@@ -944,6 +962,7 @@ function updateProjectiles(dt) {
         if (pr.x > e.x - pr.r && pr.x < e.x + e.w + pr.r && pr.y > e.y - pr.r && pr.y < e.y + e.h + pr.r) {
           if (pr.burst) { explodeBurst(pr); break; }
           damageEnemy(e, pr.dmg, {kb:Math.sign(pr.vx) * (pr.type === 'power_arrow' ? 120 : 60), fx:pr.fx, rare:pr.rare, crit:pr.crit});
+          if (pr.fx === 'lifesteal') healPlayer(pr.dmg * (pr.rare ? 0.12 : 0.08), true); // Soul Arrows heal you
           if (SPELL_COL[pr.type]) addParticles(pr.x, pr.y, SPELL_COL[pr.type][0], 12, 150, 0.4, 0); // impact burst
           if (pr.type === 'arrow' || pr.type === 'power_arrow') addParticles(pr.x, pr.y, pr.type === 'power_arrow' ? '#ffd45a' : '#ece5cf', 7, 110, 0.28, 60);
           if (pr.pierce) { (pr.hit || (pr.hit = new Set())).add(e); }
@@ -1049,7 +1068,8 @@ function bossReward(bid) {
   const b = BOSSES[bid];
   gainXp(Math.round(enemyXp(b.lvl, 30) * diff().reward));
   player.coins += Math.round(b.coins * diff().reward);
-  if (b.drop) { addItem(b.drop, 1, false); toast(`You got ${ITEMS[b.drop].name}!`, 'gold'); }
+  const drop = classDrop(bid, myClass());
+  if (drop) { addItem(drop, 1, false); toast(`You got ${ITEMS[drop].name}!`, 'gold'); }
   questEvent('boss', bid, 1);
   shake(10);
   if (bid === 'gold_dragon') showBanner('THE GILDED WYRM IS SLAIN', 'The cage door creaks open. Talk to Princess Elowen.');

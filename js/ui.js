@@ -386,7 +386,8 @@ function closeDialog() { if (openPanel === 'dialog') closePanels(); }
 function openShop(stock, title) {
   const list = $('shopList'); list.innerHTML = '';
   $('shopTitle').textContent = title || "Greta's Wares";
-  const items = stock ? stock.filter(([id]) => ITEMS[id]).map(([id, price]) => ({id, price})) : SHOP;
+  // traders only offer weapons your class can use
+  const items = (stock ? stock.filter(([id]) => ITEMS[id]).map(([id, price]) => ({id, price})) : SHOP).filter(s => canUseWeapon(ITEMS[s.id]));
   for (const s of items) {
     const it = ITEMS[s.id], locked = s.req && !G.bossesDone[s.req];
     const row = document.createElement('div'); row.className = 'shop-row' + (locked ? ' locked' : '');
@@ -457,7 +458,9 @@ function iconFor(id) {
 function slotHTML(s, extra = '') {
   if (!s) return '';
   const it = ITEMS[s.id];
-  return `<img src="${iconFor(s.id)}" alt="${it.name}" draggable="false">${s.n > 1 ? `<span class="cnt">${s.n}</span>` : ''}${extra}`;
+  // another class's weapon: dimmed with a lock
+  const lock = it.kind === 'weapon' && typeof canUseWeapon === 'function' && player && !canUseWeapon(it);
+  return `<img src="${iconFor(s.id)}" alt="${it.name}" draggable="false"${lock ? ' class="locked"' : ''}>${lock ? '<span class="lock" title="Another class\'s weapon">🔒</span>' : ''}${s.n > 1 ? `<span class="cnt">${s.n}</span>` : ''}${extra}`;
 }
 function refreshSlots() {
   const hb = $('hotbar'); if (!hb) return;
@@ -579,6 +582,8 @@ function itemInfoHTML(id, rare) {
   if (it.kind === 'weapon') {
     const dmg = Math.round(weaponDamage(it, rare));
     h += `<div class="tt-sub">${WTYPE[it.wt].label}${rare ? ' · Rare (+25% damage, stronger effect)' : ''}${it.boss ? ' · Boss weapon' : ''}</div>`;
+    const wc = weaponClass(it), ok = !player || canUseWeapon(it);
+    if (wc) h += `<div class="tt-class ${ok ? 'ok' : 'no'}">${CLASS_LABEL[wc]} only${ok ? '' : ' · you can\'t use this'}</div>`;
     h += `<div class="tt-stat">${dmg} damage${it.mana ? ` · ${it.mana} mana` : ''} · ${(1 / (it.cd || WTYPE[it.wt].cd)).toFixed(1)} attacks/s</div>`;
     h += `<div class="tt-fx"><b>${it.fxName}:</b> ${it.fxDesc}</div>`;
   } else if (it.kind === 'tool') h += `<div class="tt-sub">Pickaxe · Power ${it.power}</div>`;
@@ -605,7 +610,8 @@ function renderCrafting() {
   const box = $('craftList'); if (!box) return;
   box.innerHTML = '';
   const groups = {};
-  for (const r of RECIPES) { const k = r.st || 'hand'; (groups[k] = groups[k] || []).push(r); }
+  // only show weapon recipes for your own class
+  for (const r of RECIPES) { if (!canUseWeapon(ITEMS[r.out])) continue; const k = r.st || 'hand'; (groups[k] = groups[k] || []).push(r); }
   for (const k of ['hand', 'workbench', 'furnace', 'anvil', 'alchemy']) {
     const near = k === 'hand' || nearStation(k);
     const h = document.createElement('div'); h.className = 'craft-head';

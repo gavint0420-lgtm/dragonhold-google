@@ -619,12 +619,14 @@ function chestLoot(tx, ty) {
   // the area's herbs
   if (b.herbs && b.herbs.length) { const h = TP[b.herbs[Math.floor(R() * b.herbs.length)]].drop; if (h && ITEMS[h]) loot.push([h, roll(2, 5)]); }
   // the prize: always a weapon from this area's enemies, 35% rare (50% when deep)
-  const pool = b.under.concat(b.day).filter(k => EN[k] && EN[k].drop);
-  if (pool.length) loot.push([EN[pool[Math.floor(R() * pool.length)]].drop, 1, R() < 0.35 + deep * 0.15]);
+  // (always the version for the opener's class: Knight, Rogue or Wizard)
+  const cls = typeof myClass === 'function' ? myClass() : 'sword';
+  const pool = b.under.concat(b.day).filter(k => EN[k] && classDrop(k, cls));
+  if (pool.length) loot.push([classDrop(pool[Math.floor(R() * pool.length)], cls), 1, R() < 0.35 + deep * 0.15]);
   // bonus prizes
   const armor = bi < 2 ? 'armor_iron' : bi < 4 ? 'armor_steel' : bi < 6 ? 'armor_mythril' : 'armor_dragon';
   if (ITEMS[armor] && R() < 0.15 + deep * 0.1) loot.push([armor, 1]);
-  const bossWeapons = Object.values(BOSSES).map(x => x.drop).filter(Boolean);
+  const bossWeapons = Object.keys(BOSSES).map(k => classDrop(k, cls)).filter(Boolean);
   if (R() < 0.06 + deep * 0.06) loot.push([bossWeapons[Math.min(bossWeapons.length - 1, Math.floor(R() * Math.min(bossWeapons.length, 2 + bi)))], 1]);
   if (bi >= 5 && R() < 0.2) loot.push(['gold_lure', 1]);
   return loot.filter(([id]) => id === 'coins' || ITEMS[id]);
