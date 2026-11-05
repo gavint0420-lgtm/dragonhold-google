@@ -1124,7 +1124,7 @@ function bindMenus() {
     toast(aimMode === 'smart' ? 'Smart aim: attacks lock onto the nearest enemy, the pickaxe digs toward your cursor.' : 'Cursor aim: attacks go exactly where you point.', 'blue');
   };
   $('btnDiff').onclick = () => {
-    const order = ['easy', 'normal', 'hard'];
+    const order = ['easy', 'normal', 'hard', 'doom'];
     const next = order[(order.indexOf(G.difficulty) + 1) % order.length];
     G.difficulty = next;
     updateDiffButton();

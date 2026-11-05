@@ -305,10 +305,15 @@ const BOSSES = {
 // ===== Difficulty =====
 // hp/dmg: enemy and boss health and damage. reward: XP and gold from kills and bosses.
 // coinLoss: share of your gold lost when you fall. elite: how often Champion enemies show up.
+// atk: how fast enemies and bosses attack (2 = twice as often). spd: how fast they move. spawn: how many and how often enemies appear.
+// (atk, spd and spawn are 1 when left out)
 const DIFFICULTIES = {
   easy:   {name:'Easy',   hp:0.7, dmg:0.6, reward:1,    coinLoss:0,    elite:0.5, desc:'Weaker enemies. You keep all your gold when you fall.'},
   normal: {name:'Normal', hp:1,   dmg:1,   reward:1,    coinLoss:0.1,  elite:1,   desc:'The intended adventure. Falling costs 10% of your gold.'},
   hard:   {name:'Hard',   hp:1.5, dmg:1.5, reward:1.3,  coinLoss:0.25, elite:2,   desc:'Tougher enemies, twice the Champions, +30% XP and gold. Falling costs 25% of your gold.'},
+  // 250% of Hard: 2.5x Hard's health, damage and Champions, plus faster attacks, faster enemies and more of them
+  doom:   {name:"You're Going to Die", hp:3.75, dmg:3.75, reward:2.5, coinLoss:0.5, elite:5, atk:1.75, spd:1.35, spawn:1.6,
+    desc:'250% of Hard. Enemies have 3.75x health and damage, attack 75% faster, move faster, swarm you and are often Champions. 2.5x XP and gold. Falling costs 50% of your gold.'},
 };
 
 // ===== Mini-bosses: 2 per area. They appear when you get close and come back 10 minutes after being beaten. =====

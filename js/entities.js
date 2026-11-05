@@ -745,6 +745,7 @@ function makeEnemy(type, x, y, lvl, opt = {}) {
     lvl, elite, ai:d.ai, spd:d.spd * ENEMY_SPEED, seed:Math.random() * 100, t:0, shootT:1 + Math.random() * 2, summonT:6, atkCd:0, leapCd:1, chargeCd:2, chargeT:0,
     wanderT:0, wanderDir:0, dotTick:0.5, flash:0, slowT:0, rootT:0, stunT:0, curseT:0, poisonT:0, burnT:0, swoopT:3 + Math.random() * 2, swoopActive:0};
   const D = diff();
+  e.spd *= D.spd || 1;
   e.maxHp = Math.max(1, Math.round(enemyHp(d.hp, lvl) * ENEMY_HEALTH * (elite ? 3 : 1) * D.hp));
   e.hp = e.maxHp;
   e.dmg = Math.max(1, Math.round(enemyDmg(d.dmg, lvl) * ENEMY_DAMAGE_SCALE * (elite ? 1.4 : 1) * D.dmg));
@@ -759,9 +760,11 @@ function updateEnemies(dt) {
   for (const e of enemies) {
     if (e.dead) continue;
     const p = nearestTarget(ecx(e), ecy(e)) || player;
-    e.t += dt; e.flash -= dt; e.atkCd -= dt;
+    // adt: attack-timer time. Harder difficulties make enemies attack, shoot and leap more often.
+    const adt = dt * (diff().atk || 1);
+    e.t += dt; e.flash -= dt; e.atkCd -= adt;
     if (e.visOff) e.visOff *= Math.exp(-dt * 16);
-    e.slowT -= dt; e.rootT -= dt; e.stunT -= dt; e.curseT -= dt; e.leapCd -= dt; e.chargeCd -= dt;
+    e.slowT -= dt; e.rootT -= dt; e.stunT -= dt; e.curseT -= dt; e.leapCd -= adt; e.chargeCd -= adt;
     // damage over time
     e.dotTick -= dt;
     if (e.dotTick <= 0) {
@@ -789,7 +792,7 @@ function updateEnemies(dt) {
         gx = tx + (d.proj ? -Math.sign(dx || 1) * 170 : 0);
         gy = ty - (d.proj ? 95 : 6) + Math.sin(e.t * 2) * 18;
         if (d.swoop) {
-          e.swoopT -= dt;
+          e.swoopT -= adt;
           if (e.swoopT <= 0 && e.swoopActive <= 0) { e.swoopActive = 0.9; e.swoopT = 3.5 + Math.random() * 2; e.sdx = dx / (dist || 1); e.sdy = dy / (dist || 1); }
         }
       } else {
@@ -834,13 +837,13 @@ function updateEnemies(dt) {
       moveEntity(e, dt, true);
       if (e.chargeT <= 0) { if (aggro && Math.abs(dx) > 2) e.facing = Math.sign(dx); else if (Math.abs(e.vx) > 5) e.facing = Math.sign(e.vx); }
       if (e.ai === 'caster' && aggro && !frozen) {
-        e.shootT -= dt;
+        e.shootT -= adt;
         if (e.shootT <= 0 && dist < 480) {
           e.shootT = d.shootCd * (0.8 + Math.random() * 0.4);
           e.castT = CAST_TIME;
         }
         if (d.summon) {
-          e.summonT -= dt;
+          e.summonT -= adt;
           if (e.summonT <= 0) {
             e.summonT = 11;
             const mine = enemies.filter(m => m.summoner === e && !m.dead).length;
@@ -850,7 +853,7 @@ function updateEnemies(dt) {
       }
     }
     if (d.proj && e.ai === 'flyer' && aggro && !frozen) {
-      e.shootT -= dt;
+      e.shootT -= adt;
       if (e.shootT <= 0 && dist < 460) { e.shootT = d.shootCd * (0.8 + Math.random() * 0.4); e.castT = CAST_TIME; }
     }
     // casting: glow first, then release the spell at whoever is closest
@@ -1092,7 +1095,8 @@ function bossGroundY(e) { return surf[BOSSES[e.bid].x] * TILE; }
 function updateBoss(e, dt) {
   const b = BOSSES[e.bid];
   const p = nearestTarget(ecx(e), ecy(e));
-  e.t += dt; e.stT -= dt; e.shootT -= dt; e.summonT -= dt;
+  const adt = dt * (diff().atk || 1); // harder difficulties speed up boss attacks
+  e.t += dt; e.stT -= adt; e.shootT -= adt; e.summonT -= adt;
   if (!p) { despawnBoss(false); return; }
   const dx = ecx(p) - ecx(e), dy = ecy(p) - ecy(e), dist = Math.hypot(dx, dy);
   if (dist > 1500) { despawnBoss(false); return; }
@@ -1528,7 +1532,7 @@ function miniBossTick(dt) {
 function miniSkill(e, dx, dy, dist, dt) {
   const m = e.miniDef;
   if (!m) return;
-  e.skillT -= dt;
+  e.skillT -= dt * (diff().atk || 1);
   switch (m.skill) {
     case 'enrage':
       if (!e.enraged && e.hp < e.maxHp * 0.5) {
@@ -1572,13 +1576,13 @@ function miniSkill(e, dx, dy, dist, dt) {
 function spawnTick(dt) {
   G.spawnT -= dt;
   if (G.spawnT > 0) return;
-  G.spawnT = 3.5 + Math.random() * 3;
+  G.spawnT = (3.5 + Math.random() * 3) / (diff().spawn || 1); // harder difficulties spawn enemies more often
   const tl = allTargets();
   if (!tl.length || G.boss) return;
   const p = tl[Math.floor(Math.random() * tl.length)];
   const ptx = Math.floor(ecx(p) / TILE), pty = Math.floor(ecy(p) / TILE);
   const night = isNight();
-  const cap = (night ? 7 : 5) + (tl.length - 1) * 3;
+  const cap = Math.round(((night ? 7 : 5) + (tl.length - 1) * 3) * (diff().spawn || 1));
   const count = enemies.filter(e => !e.ally && !e.boss && !e.summoned).length;
   if (count >= cap) return;
   const underground = pty > surf[clamp(ptx, 0, WW - 1)] + 12;

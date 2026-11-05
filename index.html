@@ -110,6 +110,10 @@ a.btn { display: block; text-align: center; text-decoration: none; box-sizing: b
 .diff-btn { display: grid; gap: 2px; text-align: left; padding: 9px 12px; }
 .diff-btn b { font-size: 16px; }
 .diff-btn small { font-size: 12px; font-weight: 400; opacity: 0.85; }
+.btn.doom { border-color: #a82020; background: linear-gradient(#4a1414, #2a0a0e); color: #ffb0a0; }
+.btn.doom:hover:not(:disabled) { border-color: #ff4a3a; color: #fff; box-shadow: 0 0 12px rgba(255,60,40,0.45); }
+.seg-btn.doom[aria-checked="true"] { border-color: #ff4a3a; box-shadow: inset 0 0 0 1px #ff4a3a; color: #ff8a7a; }
+.seg-wide { grid-column: 1 / -1; }
 #updateBar { position: fixed; top: env(safe-area-inset-top, 0px); left: 50%; transform: translateX(-50%); z-index: 90; margin-top: 8px; display: flex; gap: 10px; align-items: center;
   background: rgba(18,14,22,0.95); border: 1px solid var(--gold); border-radius: 6px; padding: 8px 12px; font-size: 14px; max-width: calc(100vw - 32px); box-sizing: border-box; }
 #updateBar .btn { padding: 5px 10px; font-size: 14px; }
@@ -442,6 +446,7 @@ textarea { width: 100%; box-sizing: border-box; height: 90px; background: var(--
       <button class="btn diff-btn" data-diff="easy"><b>Easy</b><small></small></button>
       <button class="btn diff-btn primary" data-diff="normal"><b>Normal</b><small></small></button>
       <button class="btn diff-btn" data-diff="hard"><b>Hard</b><small></small></button>
+      <button class="btn diff-btn doom" data-diff="doom"><b>💀 You're Going to Die</b><small></small></button>
       <div class="hint">You can change the difficulty later from the pause menu (Esc), and swap your starting weapon by talking to Sir Aldric in the village.</div>
     </div>
     <div class="coop-box" id="coopBox" hidden>
@@ -458,6 +463,7 @@ textarea { width: 100%; box-sizing: border-box; height: 90px; background: var(--
           <button class="btn seg-btn" data-hostdiff="easy" role="radio"><b>Easy</b></button>
           <button class="btn seg-btn" data-hostdiff="normal" role="radio"><b>Normal</b></button>
           <button class="btn seg-btn" data-hostdiff="hard" role="radio"><b>Hard</b></button>
+          <button class="btn seg-btn doom seg-wide" data-hostdiff="doom" role="radio"><b>💀 You're Going to Die</b></button>
         </div>
         <div class="hint" id="hostDiffDesc"></div>
         <button class="btn primary" id="btnHost">Host a game</button>
