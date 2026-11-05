@@ -376,6 +376,8 @@ textarea { width: 100%; box-sizing: border-box; height: 90px; background: var(--
   color: #fff;
   transform: translateY(-1px);
 }
+#loading { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8,6,12,0.85); font-family: var(--display); font-size: 34px; color: var(--gold); z-index: 80; }
+@media (prefers-reduced-motion: reduce) { #banner.show { animation: none; } .toast { transition: none; } .startup-bar-glow { animation: none; } }
 </style>
 
 <div id="startupScreen">
