@@ -8,3 +8,18 @@ download/
 .DS_Store
 Thumbs.db
 *.log
+
+# applet dev environment
+node_modules/
+dist/
+build/
+bun.lock
+.env*
+!.env.example
+public/
+package.json
+tsconfig.json
+vite.config.ts
+metadata.json
+src/
+

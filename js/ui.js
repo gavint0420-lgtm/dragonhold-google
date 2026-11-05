@@ -231,12 +231,15 @@ function starterSwapDialog() {
     else { addItem(want, 1, false, true); toast(`Sir Aldric hands you the ${ITEMS[want].name}.`, 'gold'); }
     if (kind === 'wand' && countItem('pot_m1') < 3) addItem('pot_m1', 3, false, true);
     try { setStartWeapon(kind); } catch (e) {}
+    if (player) player.heroClass = kind;
     closeDialog();
   };
-  openDialog({speaker:'Sir Aldric', title:'Choose your weapon',
-    text:`<p>Every knight fights differently. Pick the weapon that suits you and I'll trade it for the starter you carry.</p>
-      <p><b>Sword:</b> balanced reach and damage. <b>Dagger:</b> fast stabs, 15% critical hits. <b>Wand:</b> ranged sparks that slow enemies, uses mana.</p>`,
-    buttons:[{label:'Sword', fn:() => pick('sword')}, {label:'Dagger', fn:() => pick('dagger')}, {label:'Wand', fn:() => pick('wand')}, {label:'Never mind', fn:closeDialog}]});
+  openDialog({speaker:'Sir Aldric', title:'Choose your class & weapon',
+    text:`<p>Every warrior fights differently. Choose your path:</p>
+      <p><b>Knight (Sword):</b> polished armor, balanced reach and damage.<br>
+      <b>Rogue Assassin (Dagger):</b> shadow cowl & cloak, fast stabs, 15% critical hits.<br>
+      <b>Wizard (Wand):</b> wizard hat & celestial robes, ranged magic that slows, uses mana.</p>`,
+    buttons:[{label:'Knight (Sword)', fn:() => pick('sword')}, {label:'Rogue Assassin (Dagger)', fn:() => pick('dagger')}, {label:'Wizard (Wand)', fn:() => pick('wand')}, {label:'Never mind', fn:closeDialog}]});
 }
 function talkTo(n) {
   if (n.shop) {
@@ -728,7 +731,7 @@ const SAVE_KEY = 'dragonhold_save_v1';
 function saveData() {
   const p = player;
   const g = Object.assign({}, G); delete g.boss;
-  return {v:1, ww:WW, seed:worldSeed, mods:[...mods], G:g, p:{x:p.x, y:p.y, level:p.level, xp:p.xp, hp:p.hp, mana:p.mana, coins:p.coins, armorId:p.armorId}, hotbar, inv:inv, sel};
+  return {v:1, ww:WW, seed:worldSeed, mods:[...mods], G:g, p:{x:p.x, y:p.y, level:p.level, xp:p.xp, hp:p.hp, mana:p.mana, coins:p.coins, armorId:p.armorId, heroClass:p.heroClass || startWeapon || 'sword'}, hotbar, inv:inv, sel};
 }
 function saveGame(silent) {
   if (NET.on && !NET.host) return saveCoopChar(silent);

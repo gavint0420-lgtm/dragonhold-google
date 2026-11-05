@@ -198,6 +198,34 @@ const ARMOR_LOOK = {
   armor_mythril: {body:'#4fd6bd', trim:'#eafff9', legs:'#36a892', boots:'#23705f', helm:'#62e0c8', cape:'#6a34a8', glove:'#36a892'},
   armor_dragon: {body:'#c9382a', trim:'#f5cc45', legs:'#962a1e', boots:'#4a1610', helm:'#d4402f', cape:'#22161a', glove:'#962a1e', plume:true},
 };
+
+// Distinct visual styles for classes: Sword (Knight), Dagger (Rogue Assassin), Wand (Wizard)
+const CLASS_LOOK = {
+  // Knight: polished plate armor, visor helm with plume, steel gauntlets and crimson cape
+  sword: {
+    none: {body:'#8a94a6', trim:'#d4af37', legs:'#626b7c', boots:'#3e4552', helm:'#a2acbe', plume:true, cape:'#a0302e', glove:'#707a8c'},
+    armor_iron: {body:'#a9acb5', trim:'#d4af37', legs:'#8a8e98', boots:'#5a5e68', helm:'#b4b8c2', plume:true, cape:'#a0302e', glove:'#8a8e98'},
+    armor_steel: {body:'#93abc8', trim:'#f0d060', legs:'#7890ae', boots:'#4e5e78', helm:'#a2b8d2', plume:true, cape:'#2f55b0', glove:'#7890ae'},
+    armor_mythril: {body:'#4fd6bd', trim:'#eafff9', legs:'#36a892', boots:'#23705f', helm:'#62e0c8', plume:true, cape:'#6a34a8', glove:'#36a892'},
+    armor_dragon: {body:'#c9382a', trim:'#f5cc45', legs:'#962a1e', boots:'#4a1610', helm:'#d4402f', plume:true, cape:'#22161a', glove:'#962a1e'}
+  },
+  // Rogue Assassin: sleek shadow leather, dark cowl/hood with glowing glint eyes, face-mask, dark silent boots, shadow cloak
+  dagger: {
+    none: {body:'#221d2a', trim:'#54384c', legs:'#1a1622', boots:'#110e16', hood:true, hoodCol:'#1d1824', mask:true, maskCol:'#2c2234', eyeCol:'#ffb347', cape:'#16121d', glove:'#141118'},
+    armor_iron: {body:'#323440', trim:'#6f7380', legs:'#242630', boots:'#161720', hood:true, hoodCol:'#282a36', mask:true, maskCol:'#3c3f4e', eyeCol:'#ffb347', cape:'#1c1e28', glove:'#2a2c38'},
+    armor_steel: {body:'#28364a', trim:'#93abc8', legs:'#1d2838', boots:'#121b26', hood:true, hoodCol:'#202d3e', mask:true, maskCol:'#364862', eyeCol:'#64e0ff', cape:'#151e2c', glove:'#243246'},
+    armor_mythril: {body:'#1e4440', trim:'#4fd6bd', legs:'#163430', boots:'#0e2220', hood:true, hoodCol:'#183834', mask:true, maskCol:'#2a5850', eyeCol:'#4fd6bd', cape:'#102624', glove:'#1a3e3a'},
+    armor_dragon: {body:'#42191c', trim:'#f5cc45', legs:'#301214', boots:'#200b0c', hood:true, hoodCol:'#381416', mask:true, maskCol:'#5c2226', eyeCol:'#ff4433', cape:'#240a0c', glove:'#321012'}
+  },
+  // Wizard: arcane celestial robes with gold-runic trim, pointed wizard hat with curled animated tip & gold buckle, mystic cape, glowing arcane eyes & sage beard
+  wand: {
+    none: {body:'#1e2b58', trim:'#e8b84a', legs:'#162042', boots:'#101730', hat:'#1a254c', dress:true, cape:'#422264', glove:'#d8a83a', beard:'#d4d0c8', arcaneEye:'#64d2ff'},
+    armor_iron: {body:'#2d3654', trim:'#e8b84a', legs:'#202840', boots:'#141a2c', hat:'#26304c', dress:true, cape:'#4a3070', glove:'#b4b8c2', beard:'#d4d0c8', arcaneEye:'#8ae0ff'},
+    armor_steel: {body:'#243c68', trim:'#f0d060', legs:'#1a2c4e', boots:'#101e38', hat:'#1e345c', dress:true, cape:'#362874', glove:'#a2b8d2', beard:'#e2ded6', arcaneEye:'#a0eaff'},
+    armor_mythril: {body:'#1c5454', trim:'#a0fff0', legs:'#143e3e', boots:'#0c2828', hat:'#184848', dress:true, cape:'#6a34a8', glove:'#4fd6bd', beard:'#eafffa', arcaneEye:'#4fd6bd'},
+    armor_dragon: {body:'#581a24', trim:'#ffd700', legs:'#3e121a', boots:'#280a10', hat:'#4c141e', dress:true, cape:'#280812', glove:'#f5cc45', beard:'#f5e6d0', arcaneEye:'#ffcc00'}
+  }
+};
 const OUTLINE = 'rgba(22,14,10,0.9)';
 function rrect(g, x, y, w, h, r) {
   g.beginPath();
@@ -263,6 +291,31 @@ function drawHumanoid(g, o, time) {
       g.quadraticCurveTo(hx - 3, hy - 9.5, hx - 8 - Math.sin(time * 5) * 0.8, hy - 6.5);
       g.quadraticCurveTo(hx - 4, hy - 6, hx + 1, hy - 4); g.fill(); g.stroke();
     } else { g.fillStyle = o.cape || o.trim; g.beginPath(); g.ellipse(hx - 0.3, hy - 5, 1.2, 1.8, -0.3, 0, Math.PI * 2); g.fill(); }
+  } else if (o.hood) {
+    // Assassin hood & cowl
+    const hg = g.createRadialGradient(hx - 1, hy - 2, 0.5, hx, hy, 5.2);
+    hg.addColorStop(0, shade(o.hoodCol || '#2a2233', 1.3));
+    hg.addColorStop(1, shade(o.hoodCol || '#2a2233', 0.8));
+    g.fillStyle = hg;
+    g.beginPath(); g.arc(hx, hy, 4.8, 0, Math.PI * 2); g.fill(); g.stroke();
+    // trailing cowl at the back
+    g.beginPath(); g.moveTo(hx, hy - 4.6);
+    g.quadraticCurveTo(hx - 4, hy - 8, hx - 8 - Math.sin(time * 5) * 0.7, hy - 5);
+    g.quadraticCurveTo(hx - 4, hy - 2, hx - 2, hy + 2);
+    g.closePath(); g.fill(); g.stroke();
+    // shadow recess inside hood
+    g.fillStyle = '#0f0c14';
+    g.beginPath(); g.arc(hx + 1.2, hy - 0.2, 3.2, 0, Math.PI * 2); g.fill();
+    // assassin mask covering mouth & nose
+    if (o.mask) {
+      g.fillStyle = o.maskCol || '#241a2c';
+      rrect(g, hx - 0.2, hy - 0.2, 4.4, 3.8, 0.8); g.fill(); g.stroke();
+    }
+    // focused glowing assassin eye
+    g.fillStyle = o.eyeCol || '#ffb347';
+    g.beginPath(); g.arc(hx + 2.3, hy - 1.0, 0.9, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#ffffff';
+    g.beginPath(); g.arc(hx + 2.5, hy - 1.2, 0.35, 0, Math.PI * 2); g.fill();
   } else {
     g.fillStyle = o.skin || '#f0c8a0'; g.beginPath(); g.arc(hx, hy, 4.3, 0, Math.PI * 2); g.fill(); g.stroke();
     g.fillStyle = o.hair;
@@ -276,6 +329,12 @@ function drawHumanoid(g, o, time) {
     g.fillStyle = o.hat; g.beginPath(); g.ellipse(hx, hy - 3, 7, 1.6, 0, 0, Math.PI * 2); g.fill(); g.stroke();
     g.beginPath(); g.moveTo(hx - 4, hy - 3.5); g.quadraticCurveTo(hx - 1, hy - 9, hx - 4 + Math.sin(time * 1.5), hy - 13); g.quadraticCurveTo(hx + 1, hy - 8, hx + 4, hy - 3.5); g.closePath(); g.fill(); g.stroke();
     g.fillStyle = '#f5cc45'; g.beginPath(); g.arc(hx - 0.5, hy - 7, 0.9, 0, Math.PI * 2); g.fill();
+    if (o.arcaneEye) {
+      g.fillStyle = o.arcaneEye;
+      g.beginPath(); g.arc(hx + 2.3, hy - 0.3, 1.1, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#ffffff';
+      g.beginPath(); g.arc(hx + 2.6, hy - 0.5, 0.4, 0, Math.PI * 2); g.fill();
+    }
   }
   if (o.crown) {
     g.fillStyle = '#f5cc45'; g.beginPath(); g.moveTo(hx - 3.6, hy - 3.2); g.lineTo(hx - 3.6, hy - 6.4); g.lineTo(hx - 1.8, hy - 4.6); g.lineTo(hx, hy - 7.2);
@@ -292,7 +351,15 @@ function groundShadow(g, w) {
 
 // ===== Player / knight =====
 function drawKnight(g, p, time) {
-  const look = ARMOR_LOOK[p.armorId || 'none'];
+  let cls = p.heroClass;
+  if (!cls) {
+    if (p.heldItem && p.heldItem.wt) cls = p.heldItem.wt;
+    else if (typeof startWeapon !== 'undefined' && startWeapon) cls = startWeapon;
+    else cls = 'sword';
+  }
+  if (!CLASS_LOOK[cls]) cls = 'sword';
+  const tier = p.armorId || 'none';
+  const look = (CLASS_LOOK[cls] && CLASS_LOOK[cls][tier]) || ARMOR_LOOK[tier] || ARMOR_LOOK.none;
   const cx = p.x + p.w / 2, by = p.y + p.h + (p.visOff || 0);
   const speed = Math.abs(p.vx);
   g.save(); g.translate(cx, by);
@@ -301,7 +368,7 @@ function drawKnight(g, p, time) {
   if (p.iframes > 0 && Math.floor(time * 20) % 2 === 0) g.globalAlpha = 0.45;
   g.rotate(clamp(p.vx * p.facing / 155, -1, 1) * 0.07);
   const o = Object.assign({}, look, {phase:p.walkPhase || 0, moving:p.onGround && speed > 15, air:!p.onGround, speed,
-    squash:p.landT > 0 ? p.landT / 0.12 : 0, skin:'#f0c8a0', hair:'#6b4423'});
+    squash:p.landT > 0 ? p.landT / 0.12 : 0, skin:'#f0c8a0', hair:cls === 'dagger' ? '#201a22' : '#6b4423'});
   const bob = drawHumanoid(g, o, time);
   // near arm and held item
   const item = p.heldItem;

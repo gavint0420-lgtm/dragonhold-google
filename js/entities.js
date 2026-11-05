@@ -15,7 +15,8 @@ function newPlayer() {
   return {x:0, y:0, w:12, h:28, vx:0, vy:0, facing:1, onGround:false, anim:0,
     level:1, xp:0, hp:100, maxHp:100, mana:50, maxMana:50, def:0, coins:0,
     iframes:0, attackCd:0, swingT:0, swingDur:0.3, dashT:0, potionCd:0, lastHurt:-99, lastCast:-99, lavaT:0,
-    quakeCount:0, dead:false, deathT:0, armorId:null, heldItem:null, aimLocal:0, mining:false, mineX:-1, mineY:-1, mineP:0};
+    quakeCount:0, dead:false, deathT:0, armorId:null, heldItem:null, aimLocal:0, mining:false, mineX:-1, mineY:-1, mineP:0,
+    heroClass: typeof startWeapon !== 'undefined' ? startWeapon : 'sword'};
 }
 
 // ===== Helpers =====

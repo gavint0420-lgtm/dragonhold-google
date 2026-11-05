@@ -195,9 +195,216 @@ textarea { width: 100%; box-sizing: border-box; height: 90px; background: var(--
 #heldItem { position: fixed; z-index: 60; pointer-events: none; }
 #heldItem img { width: 32px; height: 32px; image-rendering: pixelated; }
 #heldItem .cnt { font-size: 12px; font-weight: 700; text-shadow: 0 1px 2px #000; }
-#loading { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8,6,12,0.85); font-family: var(--display); font-size: 34px; color: var(--gold); z-index: 80; }
-@media (prefers-reduced-motion: reduce) { #banner.show { animation: none; } .toast { transition: none; } }
+/* ----- 10-Second Startup Loading Screen ----- */
+#startupScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #0b0710;
+  overflow: hidden;
+  user-select: none;
+  transition: opacity 0.75s ease-out;
+}
+#startupScreen.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+.startup-bg {
+  position: absolute;
+  inset: -25px;
+  background-image: url("assets/startup.jpg");
+  background-size: cover;
+  background-position: center 30%;
+  filter: brightness(0.9) contrast(1.1);
+  transform: scale(1.0);
+  will-change: transform;
+}
+.startup-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 45% 42%, rgba(0,0,0,0.1) 0%, rgba(11,7,16,0.5) 60%, rgba(11,7,16,0.92) 100%),
+    linear-gradient(to bottom, rgba(11,7,16,0.85) 0%, transparent 22%, transparent 68%, rgba(11,7,16,0.95) 100%);
+  pointer-events: none;
+}
+#startupFx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.startup-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: calc(28px + env(safe-area-inset-top, 0px)) 24px calc(32px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.startup-overlay > * {
+  pointer-events: auto;
+}
+.startup-top {
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.startup-badges {
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(232,184,74,0.7);
+  margin-bottom: 4px;
+}
+.startup-title {
+  font-family: var(--display);
+  font-size: clamp(44px, 8vw, 88px);
+  font-weight: 700;
+  line-height: 0.95;
+  margin: 0;
+  color: #fff4d0;
+  background: linear-gradient(180deg, #fff2cf 0%, #e8b84a 55%, #a86c1c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.9)) drop-shadow(0 0 28px rgba(232,184,74,0.45));
+  letter-spacing: 2px;
+}
+.startup-subtitle {
+  font-size: 15px;
+  color: #d6caaf;
+  margin: 6px 0 0 0;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  text-shadow: 0 2px 4px #000;
+}
+.startup-bottom {
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+.startup-status-box {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.startup-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: var(--text);
+  text-shadow: 0 1px 3px #000;
+}
+.startup-status-text {
+  font-family: var(--body);
+  font-weight: 500;
+  color: #ffd88a;
+  letter-spacing: 0.5px;
+}
+.startup-timer {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+  background: rgba(18,14,22,0.8);
+  padding: 2px 8px;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+}
+.startup-bar-outer {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  background: rgba(12,9,18,0.85);
+  border: 1px solid var(--gold);
+  border-radius: 7px;
+  overflow: hidden;
+  box-shadow: 0 0 16px rgba(0,0,0,0.8), inset 0 2px 4px rgba(0,0,0,0.8);
+}
+.startup-bar-inner {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0%;
+  background: linear-gradient(90deg, #d23b3b 0%, #e8b84a 70%, #fff0a8 100%);
+  border-radius: 6px;
+  box-shadow: 0 0 14px rgba(232,184,74,0.7);
+  transition: width 0.1s linear;
+}
+.startup-bar-glow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%);
+  animation: startupShimmer 2.2s infinite;
+  pointer-events: none;
+}
+@keyframes startupShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.startup-actions {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 4px;
+}
+.startup-skip {
+  padding: 8px 22px;
+  font-size: 14px;
+  letter-spacing: 1px;
+  background: rgba(49,41,58,0.85);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  color: var(--text);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+.startup-skip:hover {
+  border-color: var(--gold);
+  color: #fff;
+  transform: translateY(-1px);
+}
 </style>
+
+<div id="startupScreen">
+  <div class="startup-bg"></div>
+  <div class="startup-vignette"></div>
+  <canvas id="startupFx"></canvas>
+  <div class="startup-overlay">
+    <div class="startup-top">
+      <div class="startup-badges"><span>The Fallen Wyrm</span> &bull; <span>The Victorious Knight</span></div>
+      <h1 class="startup-title">DRAGONHOLD</h1>
+      <p class="startup-subtitle">The Dragon Falls &bull; The Realm is Reclaimed</p>
+    </div>
+    <div class="startup-bottom">
+      <div class="startup-status-box">
+        <div class="startup-status-row">
+          <span class="startup-status-text" id="startupStatus">Summoning the Wyrm of Aurex...</span>
+          <span class="startup-timer" id="startupTimer">10s</span>
+        </div>
+        <div class="startup-bar-outer">
+          <div class="startup-bar-inner" id="startupBar"></div>
+          <div class="startup-bar-glow"></div>
+        </div>
+      </div>
+      <div class="startup-actions">
+        <button class="btn startup-skip" id="btnStartupSkip">Skip Intro [Space]</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <canvas id="game"></canvas>
 <div id="updateBar" hidden role="status"><span id="updateText">A new version of Dragonhold is ready.</span> <button class="btn primary" id="btnUpdate">Save and update</button></div>
@@ -383,3 +590,4 @@ textarea { width: 100%; box-sizing: border-box; height: 90px; background: var(--
 <script src="js/title.js"></script>
 <script src="js/main.js"></script>
 <script src="js/dev.js"></script>
+<script src="js/startup.js"></script>

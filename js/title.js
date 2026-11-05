@@ -422,32 +422,53 @@ const drawTitleScene = (function () {
     }
   }
 
+  const coverImg = new Image();
+  let coverLoaded = false;
+  coverImg.onload = () => { coverLoaded = true; };
+  coverImg.onerror = () => { coverLoaded = false; };
+  coverImg.src = 'assets/cover.jpg';
+
   // ---------- the whole scene ----------
   return function drawTitleScene(g, W, H, time) {
     const t = reduceMotion ? 2 : time;
-    if (!bg || bgW !== W || bgH !== H) { bg = buildBackground(W, H); bgW = W; bgH = H; }
-    g.drawImage(bg, 0, 0, W, H);
-    const narrow = W < 860;
-    const s = Math.min(H / 900, W / 1500);
-    // on narrow screens the heroes stay at the edges, smaller and dimmer, so the menu stays clear
-    g.globalAlpha = narrow ? 0.4 : 1;
-    // dragon on its spire, right side
-    g.save(); g.translate(W * (narrow ? 0.9 : 0.84), H * 0.88); g.scale(s * 0.78, s * 0.78);
-    crag(g, [[-150, 14], [-70, -8], [40, -24], [150, -14], [250, 12], [330, 70], [360, 700], [-200, 700]], 'rgba(255,150,70,0.45)');
-    dragon(g, t);
-    g.restore();
-    // knight on a crag, left side
-    g.save(); g.translate(W * (narrow ? 0.1 : 0.16), H * 0.88); g.scale(s * 1.15, s * 1.15);
-    crag(g, [[-160, 6], [-96, -6], [-20, -2], [60, -8], [126, 2], [176, 34], [210, 500], [-230, 500]], 'rgba(200,200,255,0.3)');
-    knight(g, t);
-    g.restore();
-    g.globalAlpha = 1;
+    if (coverLoaded && coverImg.naturalWidth) {
+      const imgRatio = 16 / 9;
+      const screenRatio = W / H;
+      let dw, dh, dx, dy;
+      if (screenRatio > imgRatio) {
+        dw = W;
+        dh = W / imgRatio;
+        dx = 0;
+        dy = (H - dh) / 2;
+      } else {
+        dh = H;
+        dw = H * imgRatio;
+        dx = (W - dw) / 2;
+        dy = 0;
+      }
+      g.drawImage(coverImg, dx, dy, dw, dh);
+    } else {
+      if (!bg || bgW !== W || bgH !== H) { bg = buildBackground(W, H); bgW = W; bgH = H; }
+      g.drawImage(bg, 0, 0, W, H);
+      const narrow = W < 860;
+      const s = Math.min(H / 900, W / 1500);
+      g.globalAlpha = narrow ? 0.4 : 1;
+      g.save(); g.translate(W * (narrow ? 0.9 : 0.84), H * 0.88); g.scale(s * 0.78, s * 0.78);
+      crag(g, [[-150, 14], [-70, -8], [40, -24], [150, -14], [250, 12], [330, 70], [360, 700], [-200, 700]], 'rgba(255,150,70,0.45)');
+      dragon(g, t);
+      g.restore();
+      g.save(); g.translate(W * (narrow ? 0.1 : 0.16), H * 0.88); g.scale(s * 1.15, s * 1.15);
+      crag(g, [[-160, 6], [-96, -6], [-20, -2], [60, -8], [126, 2], [176, 34], [210, 500], [-230, 500]], 'rgba(200,200,255,0.3)');
+      knight(g, t);
+      g.restore();
+      g.globalAlpha = 1;
+    }
     fog(g, W, H, t);
     embers(g, W, H, t);
     // keep the menu readable: soft dark pool behind the centre, and a vignette
-    g.fillStyle = rad(g, W / 2, H * 0.5, 0, Math.max(W, H) * 0.42, [[0, 'rgba(8,5,12,0.55)'], [0.6, 'rgba(8,5,12,0.25)'], [1, 'rgba(8,5,12,0)']]);
+    g.fillStyle = rad(g, W / 2, H * 0.5, 0, Math.max(W, H) * 0.45, [[0, 'rgba(8,5,12,0.45)'], [0.7, 'rgba(8,5,12,0.2)'], [1, 'rgba(8,5,12,0)']]);
     g.fillRect(0, 0, W, H);
-    g.fillStyle = rad(g, W / 2, H / 2, Math.min(W, H) * 0.4, Math.max(W, H) * 0.8, [[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0.6)']]);
+    g.fillStyle = rad(g, W / 2, H / 2, Math.min(W, H) * 0.38, Math.max(W, H) * 0.85, [[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0.65)']]);
     g.fillRect(0, 0, W, H);
   };
 })();
