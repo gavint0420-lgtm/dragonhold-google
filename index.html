@@ -222,22 +222,12 @@ textarea { width: 100%; box-sizing: border-box; height: 90px; background: var(--
   opacity: 0;
   pointer-events: none;
 }
-.startup-bg {
-  position: absolute;
-  inset: -25px;
-  background-image: url("assets/startup.jpg");
-  background-size: cover;
-  background-position: center 30%;
-  filter: brightness(0.9) contrast(1.1);
-  transform: scale(1.0);
-  will-change: transform;
-}
 .startup-vignette {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 45% 42%, rgba(0,0,0,0.1) 0%, rgba(11,7,16,0.5) 60%, rgba(11,7,16,0.92) 100%),
-    linear-gradient(to bottom, rgba(11,7,16,0.85) 0%, transparent 22%, transparent 68%, rgba(11,7,16,0.95) 100%);
+    radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 45%, rgba(11,7,16,0.55) 100%),
+    linear-gradient(to bottom, rgba(11,7,16,0.7) 0%, transparent 20%, transparent 74%, rgba(11,7,16,0.85) 100%);
   pointer-events: none;
 }
 #startupFx {
@@ -394,20 +384,20 @@ textarea { width: 100%; box-sizing: border-box; height: 90px; background: var(--
 </style>
 
 <div id="startupScreen">
-  <div class="startup-bg"></div>
-  <div class="startup-vignette"></div>
+  <!-- the opening scene is painted live on this canvas by js/startup.js -->
   <canvas id="startupFx"></canvas>
+  <div class="startup-vignette"></div>
   <div class="startup-overlay">
     <div class="startup-top">
-      <div class="startup-badges"><span>The Fallen Wyrm</span> &bull; <span>The Victorious Knight</span></div>
+      <div class="startup-badges"><span>The Wyrm Awakens</span> &bull; <span>The Knight Stands</span></div>
       <h1 class="startup-title">DRAGONHOLD</h1>
-      <p class="startup-subtitle">The Dragon Falls &bull; The Realm is Reclaimed</p>
+      <p class="startup-subtitle">Steel against flame</p>
     </div>
     <div class="startup-bottom">
       <div class="startup-status-box">
         <div class="startup-status-row">
-          <span class="startup-status-text" id="startupStatus">Summoning the Wyrm of Aurex...</span>
-          <span class="startup-timer" id="startupTimer">10s</span>
+          <span class="startup-status-text" id="startupStatus">A storm breaks over Dragonhold...</span>
+          <span class="startup-timer" id="startupTimer">5s</span>
         </div>
         <div class="startup-bar-outer">
           <div class="startup-bar-inner" id="startupBar"></div>
