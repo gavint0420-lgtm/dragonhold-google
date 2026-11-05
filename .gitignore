@@ -21,5 +21,6 @@ package.json
 tsconfig.json
 vite.config.ts
 metadata.json
+server.ts
 src/
 

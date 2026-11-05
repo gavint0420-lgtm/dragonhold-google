@@ -374,7 +374,7 @@ function damageTarget(t, dmg, srcX, opt = {}) {
 let BOOT_VERSION = null;
 function checkVersion() {
   if (!netAvailable() || netLikelyNoServer()) return;
-  fetch('version', {cache:'no-store'}).then(r => r.ok ? r.text() : null).then(v => {
+  fetch('/version', {cache:'no-store'}).then(r => r.ok ? r.text() : null).then(v => {
     if (!v) return;
     if (BOOT_VERSION === null) { BOOT_VERSION = v; return; }
     if (v !== BOOT_VERSION) {
