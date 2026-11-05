@@ -272,15 +272,18 @@ function generateWorld(seed) {
     lastTree = x;
   }
 
-  // ruins: broken walls
+  // ruins: broken walls and roofless huts. Each has a crumbled doorway 4 blocks tall at the bottom,
+  // so knights and monsters can walk through the ruins instead of being walled in.
+  // (rnd() is still called for every tile so the rest of the world generates exactly as before.)
   for (let x = MX(1505); x < MX(1745); x += 9 + Math.floor(rnd() * 12)) {
     if (reservedForStructure(x)) continue;
     const hs = surf[x], hgt = 3 + Math.floor(rnd() * 7), wide = rnd() < 0.5 ? 2 : 1;
-    for (let k = 1; k <= hgt; k++) for (let w = 0; w < wide; w++) if (rnd() > 0.12) world[(hs - k) * WW + x + w] = T.BRICK;
+    const door = Math.min(hgt, 4);
+    for (let k = 1; k <= hgt; k++) for (let w = 0; w < wide; w++) { const r = rnd(); if (k > door && r > 0.12) world[(hs - k) * WW + x + w] = T.BRICK; }
     if (rnd() < 0.4) {
       const span = 4 + Math.floor(rnd() * 3);
-      for (let w = 0; w <= span; w++) { world[(hs - hgt) * WW + x + w] = T.BRICK; }
-      for (let k = 1; k <= hgt; k++) world[(hs - k) * WW + x + span] = T.BRICK;
+      if (hgt > door) for (let w = 0; w <= span; w++) { world[(hs - hgt) * WW + x + w] = T.BRICK; }
+      for (let k = door + 1; k <= hgt; k++) world[(hs - k) * WW + x + span] = T.BRICK;
     }
   }
   // crypt under the ruins: a stairway down and a long corridor

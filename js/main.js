@@ -1008,6 +1008,11 @@ function continueGame(data, difficulty) {
       buildMap(); buildNPCs();
       Object.assign(player, data.p);
       hotbar = fitHotbar(data.hotbar); inv = data.inv; sel = data.sel || 0;
+      // saves from before classes existed: pick the class of the first weapon on the hotbar
+      if (!data.p.heroClass) {
+        const w = [...hotbar, ...(inv || [])].map(s => s && ITEMS[s.id]).find(it => it && it.kind === 'weapon');
+        player.heroClass = (w && weaponClass(w)) || startWeapon;
+      }
       if (oldWorld) remapToBigWorld();
       recalcStats();
       player.hp = Math.max(1, Math.min(player.hp, player.maxHp));

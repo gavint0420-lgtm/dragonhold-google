@@ -261,7 +261,7 @@ function talkTo(n) {
   }
   if (n.id === 'aldric') {
     const q = currentMain();
-    const swapBtn = {label:'Change my starting weapon', fn:starterSwapDialog};
+    const swapBtn = {label:'Change my class', fn:starterSwapDialog};
     if (!QUESTS_ON) {
       // Sir Aldric points you at the next boss to hunt
       const k = nextBoss();

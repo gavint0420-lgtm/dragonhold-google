@@ -402,6 +402,8 @@ function meleeHit(e, item, rare, mult) {
   if (crit) dmg *= 2;
   const baseKb = item.kb || WTYPE[item.wt].kb;
   const kb = baseKb * (item.fx === 'knock' ? (rare ? 2.8 : 2.2) : 1);
+  // Midas Touch must mark the enemy BEFORE the hit, so a killing blow also drops double gold
+  if (item.fx === 'midas') e.coinMark = G.time;
   damageEnemy(e, dmg, {kb: p.facing * kb, crit});
   // a hit spark in the weapon's color (bigger on a critical hit)
   effects.push({type:'impact', x:ecx(e) - p.facing * e.w * 0.2, y:ecy(e), r:crit ? 22 : 14, life:crit ? 0.22 : 0.15, max:crit ? 0.22 : 0.15, col:item.col || '#ffffff'});
