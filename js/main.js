@@ -240,15 +240,23 @@ function breakTile(tx, ty) {
   const above = getT(tx, ty - 1);
   if (TP[above].deco && TP[above].hard < 99 && !TP[above].chest) breakTile(tx, ty - 1);
 }
+// Chopping a log brings down everything above it: the trunk, its branches and its whole crown.
+// Logs are only followed through logs (and leaves through logs or leaves), so a neighbor's tree is never cut.
 function fellTree(tx, ty) {
-  let y = ty, wood = 0, topY = ty;
-  while (getT(tx, y) === T.LOG) { setT(tx, y, T.AIR); wood++; topY = y; y--; }
-  for (let dy = -5; dy <= 2; dy++) for (let dx = -4; dx <= 4; dx++) {
-    const t = getT(tx + dx, topY + dy);
-    if (TP[t].leaves) setT(tx + dx, topY + dy, T.AIR);
+  let wood = 0, topY = ty, leafCol = '#3f8a3a';
+  const seen = new Set(), stack = [[tx, ty, true]];
+  while (stack.length) {
+    const [x, y, viaLog] = stack.pop(), k = y * WW + x;
+    if (seen.has(k) || y > ty || Math.abs(x - tx) > 6 || y < ty - 22) continue;
+    const t = getT(x, y), pr = TP[t];
+    if (!(pr.log && viaLog) && !pr.leaves) continue;
+    seen.add(k);
+    setT(x, y, T.AIR);
+    if (pr.log) { wood++; topY = Math.min(topY, y); } else leafCol = pr.c;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) stack.push([x + dx, y + dy, !!pr.log]);
   }
   addItem('wood', wood * 2);
-  addParticles(tx * TILE + 8, topY * TILE, '#3f8a3a', 20, 100, 0.7);
+  addParticles(tx * TILE + 8, topY * TILE, leafCol, 26, 110, 0.8);
   addFloater(tx * TILE + 8, topY * TILE, '+' + wood * 2 + ' Wood', '#d8b070');
 }
 function placeBlock(tx, ty, item, slot) {
@@ -363,7 +371,8 @@ function drawSky() {
   // far snowy mountains, hazy blue, barely moving
   {
     const par = 0.05, base = hillBase * 0.25 + VH * 0.33;
-    const mcol = mixHex(mixHex(rgbToHex(s.hill), '#8a9ab8', 0.55), '#05070f', Math.min(0.85, nightK * 0.8));
+    // (mixHex needs hex in, so the inner mix is turned back into hex first; without it the peaks came out black)
+    const mcol = mixHex(rgbToHex(mixHex(rgbToHex(s.hill), '#8a9ab8', 0.55)), '#05070f', Math.min(0.85, nightK * 0.8));
     const ridge = x => { const wx = (cam.x * Z * par + x) / 520; const r = 1 - Math.abs(fbm2(wx, 31, 91, 4) * 2 - 1); return base - r * 150; };
     const mg = ctx.createLinearGradient(0, base - 150, 0, base + 40);
     mg.addColorStop(0, mixHex(rgbToHex(mcol), '#ffffff', 0.25 * (1 - nightK))); mg.addColorStop(1, mcol);
@@ -403,6 +412,7 @@ function drawSky() {
     if (layer === 0) { ctx.strokeStyle = `rgba(255,255,255,${0.08 * (1 - nightK)})`; ctx.lineWidth = 2; ctx.beginPath(); for (let x = 0; x <= VW + 8; x += 8) x ? ctx.lineTo(x, ridge(x) + 1) : ctx.moveTo(x, ridge(x) + 1); ctx.stroke(); }
     drawRidgeDetails(layer, par, ridge, col, biome, now);
   }
+  drawNearTreeline(s, nightK, biome, hillBase, now);
   // low mist over the swamp and Duskwood
   if (biome === 'swamp' || biome === 'darkforest') {
     const my = hillBase * 0.7 + VH * 0.3;
@@ -509,6 +519,69 @@ function drawFlyers(t, nightK, biome) {
   }
 }
 // Little silhouettes standing on the hill ridges, so each biome's skyline looks different
+// A closer layer of woods behind the play area, for depth: the trees are bigger, sharper and lit
+// from the upper left, with a hazy band of forest floor beneath them.
+function drawNearTreeline(s, nightK, biome, hillBase, t) {
+  const kind = {forest:'round', plains:'round', darkforest:'tall', swamp:'willow', mountains:'pine', ruins:'dead', volcano:'dead'}[biome];
+  if (!kind) return;
+  const par = 0.55, base = hillBase * 0.85 + VH * 0.1;
+  const tint = kind === 'pine' ? '#2d5a44' : kind === 'dead' ? '#3a3036' : kind === 'willow' ? '#36523c' : '#355e34';
+  // a little sky haze mixed in, so the woods read as further away than the play area
+  const mix = (a, b, k) => rgbToHex(mixHex(rgbToHex(a), rgbToHex(b), k));
+  const col = mix(mix(mix(s.hill, tint, 0.5), s.bot, 0.22), '#05070f', Math.min(0.85, nightK * 0.8));
+  const lit = mix(col, '#fff6d8', 0.16 * (1 - nightK)), deep = mix(col, '#000000', 0.25);
+  const shift = cam.x * Z * par;
+  const ridge = x => base - fbm2((shift + x) / 140, 21, 55, 3) * 36;
+  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, VH);
+  for (let x = 0; x <= VW + 8; x += 8) ctx.lineTo(x, ridge(x));
+  ctx.lineTo(VW, VH); ctx.closePath(); ctx.fill();
+  const spacing = kind === 'dead' ? 70 : 24, k0 = Math.floor((shift - 60) / spacing), k1 = Math.ceil((shift + VW + 60) / spacing);
+  const dot = (x, y, r, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); };
+  for (let k = k0; k <= k1; k++) {
+    const h = hash2(k, 9, 61);
+    if (biome === 'plains' && h < 0.6) continue;
+    if (kind === 'dead' && h < 0.5) continue;
+    const x = k * spacing - shift + (hash2(k, 10, 61) - 0.5) * spacing * 0.8, y = ridge(x) + 4, sz = 0.8 + hash2(k, 11, 61) * 0.7;
+    const sw = Math.sin(t * 0.8 + k) * 0.8;
+    switch (kind) {
+      case 'round': case 'tall': {
+        const tall = kind === 'tall' ? 1.35 : 1;
+        ctx.fillStyle = deep; ctx.fillRect(x - 2 * sz, y - 16 * sz * tall, 4 * sz, 16 * sz * tall);
+        const cy = y - 22 * sz * tall;
+        dot(x - 7 * sz + sw, cy + 4 * sz, 8 * sz, deep); dot(x + 7 * sz + sw, cy + 4 * sz, 8 * sz, deep);
+        dot(x + sw, cy - 2 * sz, 10 * sz, col); dot(x - 6 * sz + sw, cy + 2 * sz, 7 * sz, col); dot(x + 6 * sz + sw, cy + 3 * sz, 7 * sz, col);
+        dot(x - 4 * sz + sw, cy - 6 * sz, 5 * sz, lit); dot(x - 9 * sz + sw, cy, 3.5 * sz, lit);
+        break;
+      }
+      case 'pine':
+        ctx.fillStyle = deep; ctx.fillRect(x - 1.5 * sz, y - 8 * sz, 3 * sz, 8 * sz);
+        for (let i = 0; i < 4; i++) {
+          const w = (12 - i * 2.6) * sz, yy = y - 6 * sz - i * 9 * sz;
+          ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x - w, yy); ctx.lineTo(x + sw * 0.5, yy - 15 * sz); ctx.lineTo(x + w, yy); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = lit; ctx.beginPath(); ctx.moveTo(x - w, yy); ctx.lineTo(x + sw * 0.5, yy - 15 * sz); ctx.lineTo(x - w * 0.35, yy); ctx.closePath(); ctx.fill();
+        }
+        break;
+      case 'willow':
+        ctx.fillStyle = deep; ctx.fillRect(x - 2 * sz, y - 18 * sz, 4 * sz, 18 * sz);
+        ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x, y - 22 * sz, 18 * sz, 9 * sz, 0, Math.PI, 0); ctx.fill();
+        ctx.strokeStyle = col; ctx.lineWidth = 2 * sz; ctx.beginPath();
+        for (let i = -4; i <= 4; i++) { const sx = x + i * 4 * sz; ctx.moveTo(sx, y - 22 * sz); ctx.lineTo(sx + sw, y - (8 + Math.abs(i)) * sz); }
+        ctx.stroke();
+        dot(x - 6 * sz, y - 27 * sz, 5 * sz, lit);
+        break;
+      case 'dead':
+        ctx.strokeStyle = deep; ctx.lineCap = 'round';
+        ctx.lineWidth = 3 * sz; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 1 * sz, y - 26 * sz); ctx.stroke();
+        ctx.lineWidth = 1.6 * sz; ctx.beginPath(); ctx.moveTo(x + 0.5 * sz, y - 14 * sz); ctx.lineTo(x - 9 * sz, y - 24 * sz); ctx.moveTo(x + 1 * sz, y - 19 * sz); ctx.lineTo(x + 10 * sz, y - 28 * sz); ctx.lineTo(x + 13 * sz, y - 27 * sz); ctx.stroke();
+        ctx.lineCap = 'butt';
+        break;
+    }
+  }
+  // haze between the woods and the play area
+  const hz = ctx.createLinearGradient(0, base - 60, 0, base + 40);
+  hz.addColorStop(0, 'rgba(0,0,0,0)'); hz.addColorStop(1, `rgba(${nightK > 0.5 ? '20,24,40' : '200,214,220'},${0.18 * (1 - nightK * 0.5)})`);
+  ctx.fillStyle = hz; ctx.fillRect(0, base - 60, VW, 100);
+}
 function drawRidgeDetails(layer, par, ridge, col, biome, t) {
   const spacing = layer === 0 ? 46 : 34, shift = cam.x * Z * par;
   const dark = mixHex(rgbToHex(col), '#000000', 0.18);
@@ -551,6 +624,7 @@ function rgbToHex(c) {
   return '#' + m.slice(0, 3).map(v => v.toString(16).padStart(2, '0')).join('');
 }
 function drawTiles(tx0, ty0, tx1, ty1, time) {
+  leafList.length = 0;
   for (let ty = ty0; ty <= ty1; ty++) {
     if (ty < 0 || ty >= WH) continue;
     for (let tx = tx0; tx <= tx1; tx++) {
@@ -561,7 +635,7 @@ function drawTiles(tx0, ty0, tx1, ty1, time) {
         if (inCastle(tx, ty)) bg = bgTex.castle;
         else if (ty > surf[tx] + 1) bg = ty > surf[tx] + 10 ? bgTex.stone : (biomeIndexAt(tx) >= 6 ? bgTex.ash : bgTex.dirt);
         if (bg) {
-          ctx.drawImage(bg, x, y);
+          ctx.drawImage(bg[(tx * 5 + ty * 3) & 3], x, y);
           ctx.fillStyle = 'rgba(0,0,0,0.3)';
           if (isSolid(tx, ty - 1)) ctx.fillRect(x, y, 16, 4);
           if (isSolid(tx - 1, ty)) ctx.fillRect(x, y, 3, 16);
@@ -581,28 +655,102 @@ function drawTiles(tx0, ty0, tx1, ty1, time) {
         continue;
       }
       if (pr.deco) { drawDeco(ctx, t, x, y, time); continue; }
+      if (pr.leaves) { leafList.push(tx, ty, t); continue; } // crowns are drawn last, over the trunks
+      if (pr.log) { drawLogTile(t, pr, tx, ty, x, y); continue; }
       const tex = tileTex[t];
-      if (tex && tex.length) ctx.drawImage(tex[(tx * 7 + ty * 13) & 3], x, y);
+      if (tex && tex.length) ctx.drawImage(tex[(tx * 7 + ty * 13) & 7], x, y);
       if (!pr.solid) continue;
       // soft edges where the block meets open space
       const up = isSolid(tx, ty - 1), dn = isSolid(tx, ty + 1), lf = isSolid(tx - 1, ty), rt = isSolid(tx + 1, ty);
+      // depth: soil and rock grow darker the deeper they lie under the surface
+      const depth = ty - surf[tx];
+      if (up && depth > 0) { ctx.fillStyle = `rgba(14,8,5,${Math.min(0.34, depth * 0.03)})`; ctx.fillRect(x, y, 16, 16); }
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
       if (!dn) ctx.fillRect(x, y + 14, 16, 2);
       if (!lf) ctx.fillRect(x, y, 1.5, 16);
       if (!rt) ctx.fillRect(x + 14.5, y, 1.5, 16);
       if (!up) {
+        const h = hash2(tx, ty, 91);
         if (pr.top) {
-          ctx.fillStyle = pr.top;
-          for (let k = 0; k < 4; k++) {
-            const hh = 1.5 + ((tx * 31 + k * 17) % 3), bx = x + 1.5 + k * 4 + ((tx + k) % 2);
-            const sw = Math.sin(time * 2 + tx * 0.7 + k) * 0.7;
-            ctx.beginPath(); ctx.moveTo(bx - 0.8, y + 0.5); ctx.lineTo(bx + sw, y - hh); ctx.lineTo(bx + 0.8, y + 0.5); ctx.fill();
+          // grass blades in two shades, swaying a little
+          for (let k = 0; k < 6; k++) {
+            ctx.fillStyle = k % 2 ? pr.top : pr.top2;
+            const hh = 2 + ((tx * 31 + k * 17) % 4), bx = x + 1 + k * 2.8 + ((tx + k) % 2);
+            const sw = Math.sin(time * 2 + tx * 0.7 + k) * 0.8;
+            ctx.beginPath(); ctx.moveTo(bx - 0.9, y + 0.5); ctx.lineTo(bx + sw, y - hh); ctx.lineTo(bx + 0.9, y + 0.5); ctx.fill();
           }
-        } else { ctx.fillStyle = 'rgba(255,255,255,0.13)'; ctx.fillRect(x, y, 16, 1.5); }
+          // turf hangs over the edge of a drop
+          ctx.fillStyle = pr.top;
+          if (!lf) ctx.fillRect(x - 1, y, 2, 3 + ((tx * 3 + ty) % 3));
+          if (!rt) ctx.fillRect(x + 15, y, 2, 3 + ((tx * 5 + ty) % 3));
+          // wildflowers in the green meadows
+          if (h < 0.13 && t === T.GRASS) {
+            const fx = x + 3 + Math.floor(h * 77) % 10, col = FLOWERS[Math.floor(h * 1000) % FLOWERS.length];
+            ctx.fillStyle = pr.top2; ctx.fillRect(fx, y - 4, 1, 4);
+            ctx.fillStyle = col; ctx.fillRect(fx - 1, y - 6, 3, 2); ctx.fillRect(fx, y - 7, 1, 1);
+            ctx.fillStyle = '#ffe9a0'; ctx.fillRect(fx, y - 6, 1, 1);
+          }
+        } else {
+          ctx.fillStyle = t === T.SNOW ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.13)'; ctx.fillRect(x, y, 16, 1.5);
+          // loose stones on bare rock and ash
+          if (h < 0.1 && (t === T.STONE || t === T.ASH || t === T.SNOW)) {
+            const sx = x + 2 + Math.floor(h * 113) % 10;
+            ctx.fillStyle = t === T.ASH ? '#2a2324' : '#5d5f68'; ctx.fillRect(sx, y - 2, 4, 2);
+            ctx.fillStyle = t === T.ASH ? '#4a4042' : '#8d909a'; ctx.fillRect(sx, y - 2, 3, 1);
+          }
+        }
         if (!lf) { ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(x, y, 3, 3); }
         if (!rt) { ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(x + 13, y, 3, 3); }
       }
     }
+  }
+  // tree crowns last, so leaves overlap the trunks and each other into one soft canopy
+  for (let i = 0; i < leafList.length; i += 3) {
+    const tx = leafList[i], ty = leafList[i + 1], t = leafList[i + 2];
+    const upL = TP[getT(tx, ty - 1)].leaves, dnL = TP[getT(tx, ty + 1)].leaves;
+    const lit = !upL ? 0 : !dnL ? 2 : 1;
+    const sway = Math.sin(time * 1.3 + tx * 0.4 + ty * 0.2) * (lit === 0 ? 0.7 : 0.3);
+    ctx.drawImage(leafTex[t][lit][(tx * 3 + ty * 7) & 3], tx * TILE - 4 + sway, ty * TILE - 4);
+    // swamp willows trail long strands of leaves
+    if (!dnL && t === T.DARKLEAVES && biomeIndexAt(tx) === 2) {
+      ctx.strokeStyle = '#3a6a4a'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let k = 0; k < 3; k++) {
+        const sx = tx * TILE + 3 + k * 5, len = 6 + ((tx * 7 + k * 5 + ty) % 9), sw = Math.sin(time * 1.1 + tx + k) * 1.5;
+        ctx.moveTo(sx, ty * TILE + 13); ctx.quadraticCurveTo(sx + sw * 0.5, ty * TILE + 13 + len * 0.5, sx + sw, ty * TILE + 13 + len);
+      }
+      ctx.stroke();
+    }
+  }
+}
+const FLOWERS = ['#f2d14a', '#e85a8a', '#ffffff', '#8ab4ff', '#d070e0', '#ff8a4a'];
+const leafList = [];
+// Trunks get spreading roots where they meet the ground; branch logs are drawn as real limbs
+// reaching out from the trunk instead of square blocks.
+function drawLogTile(t, pr, tx, ty, x, y) {
+  const bp = TP[getT(tx, ty + 1)];
+  if (!bp.log && !bp.solid) {
+    for (const [dx, dy] of [[-1, 1], [1, 1], [-1, 0], [1, 0]]) {
+      if (!TP[getT(tx + dx, ty + dy)].log) continue;
+      const fx = x + 8 + dx * 10, fy = y + 8 + dy * 10;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = pr._dark || (pr._dark = shade(pr.c, 0.62)); ctx.lineWidth = 5.5;
+      ctx.beginPath(); ctx.moveTo(fx, fy + 0.6); ctx.lineTo(x + 8, y + 8.6); ctx.stroke();
+      ctx.strokeStyle = pr.c; ctx.lineWidth = 3.6;
+      ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(x + 8, y + 8); ctx.stroke();
+      ctx.strokeStyle = pr._lite || (pr._lite = shade(pr.c, 1.25)); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(fx, fy - 1.2); ctx.lineTo(x + 8, y + 6.8); ctx.stroke();
+      ctx.lineCap = 'butt';
+      return;
+    }
+  }
+  ctx.drawImage(tileTex[t][(tx * 7 + ty * 13) & 7], x, y);
+  if (bp.solid) { // roots flare out into the soil
+    ctx.fillStyle = pr.c;
+    ctx.beginPath(); ctx.moveTo(x + 3, y + 8); ctx.quadraticCurveTo(x + 2.5, y + 15, x - 4, y + 16.5); ctx.lineTo(x + 20, y + 16.5); ctx.quadraticCurveTo(x + 13.5, y + 15, x + 13, y + 8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = pr._dark || (pr._dark = shade(pr.c, 0.62));
+    ctx.beginPath(); ctx.moveTo(x + 11, y + 9); ctx.quadraticCurveTo(x + 12, y + 15, x + 20, y + 16.5); ctx.lineTo(x + 13, y + 16.5); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = pr._lite || (pr._lite = shade(pr.c, 1.25)); ctx.fillRect(x + 3, y + 8, 2, 6);
   }
 }
 function computeLight(tx0, ty0, nx, ny) {

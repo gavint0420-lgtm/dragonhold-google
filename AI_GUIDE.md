@@ -44,6 +44,16 @@ Two AI agents work on this project through its GitHub repository. Follow `AGENTS
 
 - **Physics:** `moveEntity(e, dt, stepUp)` does sub-stepped tile collision, steps up 1 block, and blocks movement at the rune-seal barrier (now off). `rectSolid` tests a rectangle. `clearPath` and `canReach(a, b)` provide line of sight, so enemies can't hit through walls.
 - **Ladders** (`T.LADDER`): `onLadder` and `ladderBelow` are used in `updatePlayer`. The top rung acts as floor unless the down key is held.
+- **Trees** (`world.js`):
+  - Shapes: `growTree` (oak, tall, willow), `growPine` and `growDeadTree`. `addHighlandTrees` adds pines, dead trees and burnt trees on the mountains, ruins and volcano.
+  - Random numbers: tree shapes use their own `rngMaker`/`hash2`, never the world's `rnd()`, so the rest of the world (and old saves) stays the same. Keep it that way.
+  - Tiles: logs (`T.LOG`, `T.DEADLOG`, `pr.log`) and leaves (`T.LEAVES`, `T.DARKLEAVES`, `T.PINELEAVES`) aren't solid. `fellTree` removes everything connected above the chopped log.
+- **Drawing the land** (`main.js` `drawTiles`):
+  - Order: leaves are queued in `leafList` and drawn last as 24px `leafTex` clumps, lit by position.
+  - Trunks: `drawLogTile` adds root flares and draws branch logs as limbs.
+  - Ground: darkens with depth below `surf`. Grass hangs over edges, and wildflowers come from the `FLOWERS` list.
+  - Background: `drawNearTreeline` is the closer layer of woods behind the play area.
+  - Color mixing: `mixHex` takes hex only. Wrap a mixed color in `rgbToHex()` before mixing it again, or it turns black.
 - **Player combat** (`entities.js`):
   - `attack(item, slot)` → `meleeHit(e, item, rare, mult)` → `damageEnemy(e, amt, {kb, crit, fx, rare})`.
   - Weapon effects are an `fx` string on the item: steady, slow, knock, shards, bloodrage, curse, poison, lunar, regen, drain, quake, dash, chain, raise, dragonfire, coin, root, shockwave, lifesteal. The boss-only ones are cleave, warcry, reap, bloodmoon, eruption and midas.

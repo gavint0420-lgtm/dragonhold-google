@@ -113,6 +113,83 @@ function mineAt(tx, ty) {
   for (const s of MINE_SITES) if (Math.abs(tx - s.x) <= 7 && ty > surf[s.x] - 12 && ty < surf[s.x] + MINE_DEPTH + 4) return s;
   return null;
 }
+// ===== Trees =====
+// A tree is a trunk of logs with a leafy crown. Logs and leaves aren't solid, so trees never block anyone.
+// Each kind has its own shape: oaks with a side branch, tall Duskwood giants, droopy swamp willows,
+// pointed mountain pines, and bare dead trees.
+function putIfAir(x, y, t) { if (x > 0 && x < WW - 1 && y > 0 && y < WH && world[y * WW + x] === T.AIR) world[y * WW + x] = t; }
+function leafBlob(cx, cy, rx, ry, t, r) {
+  for (let dy = -Math.ceil(ry); dy <= Math.ceil(ry); dy++) for (let dx = -Math.ceil(rx); dx <= Math.ceil(rx); dx++) {
+    if ((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) > 1 + (r() - 0.5) * 0.45) continue; // ragged, natural edge
+    putIfAir(cx + dx, cy + dy, t);
+  }
+}
+function treeBranch(x, hs, k, side, len, log) {
+  let bx = x, by = hs - k;
+  for (let i = 1; i <= len; i++) { bx += side; by -= 1; putIfAir(bx, by, log); }
+  return [bx, by];
+}
+function growTree(x, hs, th, kind, leaves, r) {
+  for (let k = 1; k <= th; k++) world[(hs - k) * WW + x] = T.LOG;
+  const top = hs - th;
+  if (kind === 'oak') {
+    if (th >= 6) { const s = r() < 0.5 ? -1 : 1, [bx, by] = treeBranch(x, hs, Math.floor(th * 0.55), s, 2, T.LOG); leafBlob(bx + s, by - 1, 1.9, 1.5, leaves, r); }
+    leafBlob(x, top - 1, 2.6 + r() * 0.9, 2.1 + r() * 0.5, leaves, r);
+    if (r() < 0.6) leafBlob(x + (r() < 0.5 ? -2 : 2), top, 1.7, 1.3, leaves, r);
+  } else if (kind === 'tall') {
+    for (const s of [-1, 1]) { const [bx, by] = treeBranch(x, hs, Math.floor(th * (0.5 + r() * 0.15)), s, 2 + (r() < 0.5 ? 1 : 0), T.LOG); leafBlob(bx, by - 1, 2.2, 1.6, leaves, r); }
+    leafBlob(x, top - 1, 3.4 + r() * 0.8, 2.6 + r() * 0.5, leaves, r);
+    leafBlob(x, top - 4, 2.2, 1.6, leaves, r);
+  } else if (kind === 'willow') {
+    leafBlob(x, top, 3.8 + r(), 1.8, leaves, r);
+    for (let dx = -4; dx <= 4; dx++) { // curtains of leaves hanging from the crown
+      if (dx === 0 || r() < 0.35) continue;
+      let y = top + 1; while (y < hs - 2 && world[y * WW + x + dx] !== T.AIR) y++;
+      const len = 2 + Math.floor(r() * 3);
+      for (let k = 0; k < len && y + k < hs - 2; k++) putIfAir(x + dx, y + k, leaves);
+    }
+  }
+}
+// a pine's crown: a pointed tip, then tiers that step out wider toward the bottom
+function pineWidth(i) { return Math.min(3, Math.floor(i / 3) + (i % 3 === 2 ? 1 : 0)); }
+function growPine(x, hs, th) {
+  for (let k = 1; k <= th; k++) world[(hs - k) * WW + x] = T.LOG;
+  const top = hs - th - 1, bottom = hs - 3;
+  for (let y = top; y <= bottom; y++) {
+    const w = pineWidth(y - top);
+    for (let dx = -w; dx <= w; dx++) putIfAir(x + dx, y, T.PINELEAVES);
+    world[y * WW + x] = T.PINELEAVES; // dense needles hide the trunk inside the crown
+  }
+}
+function growDeadTree(x, hs, th, r) {
+  for (let k = 1; k <= th; k++) world[(hs - k) * WW + x] = T.DEADLOG;
+  const first = r() < 0.5 ? -1 : 1;
+  treeBranch(x, hs, 2 + Math.floor(r() * (th - 2)), first, 1 + (r() < 0.5 ? 1 : 0), T.DEADLOG);
+  if (r() < 0.6) treeBranch(x, hs, 2 + Math.floor(r() * (th - 2)), -first, 1 + (r() < 0.5 ? 1 : 0), T.DEADLOG);
+  putIfAir(x + (r() < 0.5 ? -1 : 1), hs - th - 1, T.DEADLOG); // a crooked broken tip
+}
+function addHighlandTrees(seed) {
+  let last = -10;
+  for (let x = 4; x < WW - 4; x++) {
+    const id = biomeAt(x).id, kind = id === 'mountains' ? 'pine' : id === 'ruins' || id === 'volcano' ? 'dead' : null;
+    if (!kind || x - last < 5 || reservedForStructure(x)) continue;
+    if (hash2(x, 17, seed) > (kind === 'pine' ? 0.2 : 0.07)) continue;
+    const hs = surf[x];
+    if (hs < 14 || !TP[world[hs * WW + x]].solid) continue;
+    const r = rngMaker((seed ^ Math.imul(x, 40503) ^ 0x5bd1e995) >>> 0);
+    const th = kind === 'pine' ? 6 + Math.floor(r() * 5) : 4 + Math.floor(r() * 4);
+    // room for the whole tree: every tile it would fill must be open air (so pines can stand on slopes,
+    // but never grow into rock, ruins or anything else)
+    let clear = true;
+    for (let k = 1; k <= th + 1 && clear; k++) {
+      const y = hs - k, w = kind === 'pine' ? (y >= hs - th - 1 && y <= hs - 3 ? pineWidth(y - (hs - th - 1)) : 0) : 2;
+      for (let dx = -w; dx <= w; dx++) { const t = world[y * WW + x + dx]; if (t !== T.AIR && !TP[t].plant) { clear = false; break; } }
+    }
+    if (!clear) continue;
+    if (kind === 'pine') growPine(x, hs, th); else growDeadTree(x, hs, th, r);
+    last = x;
+  }
+}
 function reservedForStructure(x) {
   if (x >= 15 && x <= 125) return true;
   for (const s of MINE_SITES) if (Math.abs(x - s.x) <= 8) return true;
@@ -262,13 +339,8 @@ function generateWorld(seed) {
     if (!(st === T.GRASS || st === T.DARKGRASS || st === T.SWAMPGRASS)) continue;
     if (world[(hs - 1) * WW + x] !== T.AIR) continue;
     const th = 5 + Math.floor(rnd() * 5) + (b.id === 'darkforest' ? 2 : 0);
-    for (let k = 1; k <= th; k++) world[(hs - k) * WW + x] = T.LOG;
-    const cy = hs - th, rad = b.id === 'darkforest' ? 3 : 2;
-    for (let dy = -rad - 1; dy <= rad; dy++) for (let dx = -rad - 1; dx <= rad + 1; dx++) {
-      if ((dx * dx) / ((rad + 1.2) * (rad + 1.2)) + (dy * dy) / ((rad + 0.6) * (rad + 0.6)) > 1) continue;
-      const tx = x + dx, ty = cy + dy;
-      if (ty > 0 && world[ty * WW + tx] === T.AIR) world[ty * WW + tx] = b.leaves;
-    }
+    // the tree's shape uses its own random numbers, so the rest of the world stays exactly the same
+    growTree(x, hs, th, b.id === 'swamp' ? 'willow' : b.id === 'darkforest' ? 'tall' : 'oak', b.leaves, rngMaker((seed ^ Math.imul(x, 2654435761)) >>> 0));
     lastTree = x;
   }
 
@@ -366,6 +438,8 @@ function generateWorld(seed) {
 
   buildCastle();
   for (const s of MINE_SITES) buildMineShaft(s.x, s.mine, rnd);
+  // pines on the mountains, dead trees in the ruins and burnt ones on the volcano (own random numbers)
+  addHighlandTrees(seed);
 
   // finalize
   for (let x = 0; x < WW; x++) updateTop(x);

@@ -15,7 +15,7 @@ function MX(x) {
 const T = {AIR:0,DIRT:1,GRASS:2,STONE:3,MUD:4,SWAMPGRASS:5,DARKGRASS:6,SNOW:7,ASH:8,OBSIDIAN:9,BRICK:10,CASTLE:11,
   WOOD:12,LOG:13,LEAVES:14,DARKLEAVES:15,COAL:16,IRON:17,GOLD:18,MYTHRIL:19,TORCH:20,WORKBENCH:21,FURNACE:22,ANVIL:23,
   ALCHEMY:24,CHEST:25,WATER:26,LAVA:27,HERB_RED:28,HERB_BLUE:29,HERB_SWAMP:30,HERB_FROST:31,HERB_GRAVE:32,HERB_FIRE:33,
-  ALTAR:34,WAYSTONE:35,BEDROCK:36,BARS:37,HOARD:38,DEADGRASS:39,CHEST_OPEN:40,LADDER:41};
+  ALTAR:34,WAYSTONE:35,BEDROCK:36,BARS:37,HOARD:38,DEADGRASS:39,CHEST_OPEN:40,LADDER:41,PINELEAVES:42,DEADLOG:43};
 const TP = [];
 function tp(id, o) { TP[id] = Object.assign({solid:false, hard:1, c:'#000', c2:'#000', drop:null, light:0, name:''}, o); }
 tp(T.AIR, {hard:0});
@@ -35,6 +35,8 @@ tp(T.WOOD, {solid:true, c:'#a8743f', c2:'#8a5c2e', drop:'wood', plank:true});
 tp(T.LOG, {hard:1, c:'#6b4423', c2:'#53341a', drop:'wood', log:true});
 tp(T.LEAVES, {hard:0.2, c:'#3f8a3a', c2:'#2f6e2c', leaves:true});
 tp(T.DARKLEAVES, {hard:0.2, c:'#2b5a42', c2:'#1f4532', leaves:true});
+tp(T.PINELEAVES, {hard:0.2, c:'#2f5a3e', c2:'#21432d', leaves:true, pine:true}); // pine needles (Frostfang Peaks)
+tp(T.DEADLOG, {hard:1, c:'#5e554c', c2:'#463f38', drop:'wood', log:true, dead:true}); // bare, dead or burnt trees (ruins, volcano)
 tp(T.COAL, {solid:true, hard:2, c:'#6d6f78', c2:'#585a63', ore:'#1b1b20', drop:'coal'});
 tp(T.IRON, {solid:true, hard:2, c:'#6d6f78', c2:'#585a63', ore:'#d2a57e', drop:'iron_ore'});
 tp(T.GOLD, {solid:true, hard:3, c:'#6d6f78', c2:'#585a63', ore:'#f5cc45', drop:'gold_ore'});

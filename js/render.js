@@ -1,7 +1,10 @@
 'use strict';
 // ===== Tile textures =====
 const tileTex = [];
-const VARIANTS = 4;
+const VARIANTS = 8;
+// which ground tiles are rock (cracks, angular stones) and which are soil (roots, pebbles)
+const ROCKY = new Set([T.STONE, T.OBSIDIAN, T.BEDROCK, T.COAL, T.IRON, T.GOLD, T.MYTHRIL]);
+const SOIL = new Set([T.DIRT, T.GRASS, T.MUD, T.SWAMPGRASS, T.DARKGRASS, T.DEADGRASS]);
 function shade(hex, f) {
   const [r, g, b] = hexRgb(hex);
   const k = v => clamp(Math.round(v * f), 0, 255);
@@ -26,9 +29,13 @@ function makeTileTex(id, v) {
     for (let row = 0; row < 4; row++) px(row % 2 ? 11 : 4, row * 4, 1, 3, p.c2);
     for (let i = 0; i < 5; i++) px(Math.floor(r() * 16), Math.floor(r() * 16), 2, 1, shade(p.c, 1.1));
   } else if (p.log) {
+    // bark: a sunlit left edge, a shaded right edge, long grooves, and the odd knot
+    const L = shade(p.c, 1.25), D = shade(p.c, 0.66);
     px(3, 0, 10, 16, p.c);
-    for (let i = 0; i < 6; i++) px(4 + Math.floor(r() * 8), Math.floor(r() * 14), 1, 3, p.c2);
-    px(3, 0, 1, 16, p.c2); px(12, 0, 1, 16, shade(p.c, 0.7));
+    px(3, 0, 2, 16, L); px(4, 0, 1, 16, shade(p.c, 1.1)); px(11, 0, 1, 16, D); px(12, 0, 1, 16, shade(p.c, 0.5));
+    for (let i = 0; i < 4; i++) { const gx = 5 + Math.floor(r() * 6), gy = Math.floor(r() * 7) - 3, len = 6 + Math.floor(r() * 10); px(gx, Math.max(0, gy), 1, len, p.c2); if (r() < 0.5) px(gx + 1, Math.max(0, gy + 2), 1, len - 4, shade(p.c, 1.12)); }
+    if (r() < 0.35) { const ky = 3 + Math.floor(r() * 9); px(6, ky, 4, 3, p.c2); px(7, ky + 1, 2, 1, D); px(6, ky, 1, 1, L); }
+    if (p.dead) for (let i = 0; i < 4; i++) px(5 + Math.floor(r() * 6), Math.floor(r() * 15), 1 + Math.floor(r() * 2), 1, '#2a2522'); // cracks and scorch marks
   } else if (p.leaves) {
     for (let i = 0; i < 16; i++) {
       g.fillStyle = r() < 0.5 ? p.c : p.c2;
@@ -43,9 +50,35 @@ function makeTileTex(id, v) {
     }
     if (r() < 0.5) { px(5, 5, 3, 3, '#d8333a'); px(6, 6, 1, 1, '#ff9a9a'); }
   } else if (p.solid) {
+    // natural ground: soft mottled patches, grains, small stones with a lit top and a shadow,
+    // cracks in rock, roots in soil, sparkles in snow and embers in ash
     px(0, 0, 16, 16, p.c);
-    for (let i = 0; i < 14; i++) px(Math.floor(r() * 15), Math.floor(r() * 15), 1 + Math.floor(r() * 2), 1 + Math.floor(r() * 2), p.c2);
-    for (let i = 0; i < 4; i++) px(Math.floor(r() * 15), Math.floor(r() * 15), 1, 1, shade(p.c, 1.18));
+    g.globalAlpha = 0.55;
+    for (let cy = 0; cy < 16; cy += 4) for (let cx = 0; cx < 16; cx += 4) px(cx, cy, 4, 4, shade(p.c, 0.9 + r() * 0.2));
+    g.globalAlpha = 1;
+    for (let i = 0; i < 12; i++) px(Math.floor(r() * 15), Math.floor(r() * 15), 1 + Math.floor(r() * 2), 1 + Math.floor(r() * 2), p.c2);
+    for (let i = 0; i < 4; i++) px(Math.floor(r() * 15), Math.floor(r() * 15), 1, 1, shade(p.c, 1.2));
+    const rocky = ROCKY.has(id), soil = SOIL.has(id);
+    if (rocky || soil) {
+      const n = 1 + Math.floor(r() * (rocky ? 3 : 2));
+      for (let i = 0; i < n; i++) {
+        const sx = Math.floor(r() * 12), sy = (p.top ? 6 : 1) + Math.floor(r() * (p.top ? 7 : 12)), w = 2 + Math.floor(r() * 2);
+        const sc = soil ? (r() < 0.5 ? '#8a7a68' : '#6f655a') : shade(p.c, 1.12);
+        px(sx, sy, w, 2, sc); px(sx, sy, w, 1, shade(soil ? '#9c8c78' : p.c, 1.25)); px(sx, sy + 2, w, 1, shade(p.c, 0.6));
+      }
+    }
+    if (rocky && id !== T.BEDROCK && r() < 0.7) { // a hairline crack
+      let cx = Math.floor(r() * 14), cy = Math.floor(r() * 14);
+      g.fillStyle = shade(p.c, 0.55);
+      for (let i = 0; i < 6; i++) { g.fillRect(cx, cy, 1, 1); cx += r() < 0.5 ? 1 : 0; cy += 1; if (r() < 0.3) cx -= 1; }
+    }
+    if (soil && r() < 0.45) { // a thin root
+      let rx = Math.floor(r() * 10), ry = (p.top ? 7 : 2) + Math.floor(r() * 7);
+      g.fillStyle = '#3f2614';
+      for (let i = 0; i < 6; i++) { g.fillRect(rx, ry, 1, 1); rx += 1; if (r() < 0.4) ry += r() < 0.5 ? 1 : -1; }
+    }
+    if (id === T.SNOW) { g.globalAlpha = 0.35; for (let i = 0; i < 3; i++) px(Math.floor(r() * 12), Math.floor(r() * 12), 4, 3, '#b8c8e0'); g.globalAlpha = 1; for (let i = 0; i < 4; i++) px(Math.floor(r() * 15), Math.floor(r() * 15), 1, 1, '#ffffff'); }
+    if (id === T.ASH && r() < 0.5) px(Math.floor(r() * 15), Math.floor(r() * 15), 1, 1, '#c0502a');
     if (p.ore) {
       for (let i = 0; i < 5; i++) {
         const ox = 1 + Math.floor(r() * 12), oy = 1 + Math.floor(r() * 12), s = 2 + Math.floor(r() * 2);
@@ -54,29 +87,77 @@ function makeTileTex(id, v) {
     }
     if (id === T.OBSIDIAN) { for (let i = 0; i < 3; i++) px(Math.floor(r() * 12), Math.floor(r() * 12), 4, 1, '#7a5ab8'); }
     if (p.top) {
-      px(0, 0, 16, 4, p.top);
-      for (let x = 0; x < 16; x++) if (r() < 0.6) px(x, 4, 1, 1 + Math.floor(r() * 2), p.top2);
-      for (let x = 0; x < 16; x += 2) if (r() < 0.5) px(x, 0, 1, 1, shade(p.top, 1.2));
+      // a thick turf layer whose roots reach down raggedly into the soil, with a soft shadow under it
+      px(0, 0, 16, 3, p.top);
+      for (let x = 0; x < 16; x++) {
+        const d = 1 + Math.floor(r() * 3);
+        px(x, 3, 1, d, p.top2);
+        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x, 3 + d, 1, 1);
+      }
+      for (let x = 0; x < 16; x++) if (r() < 0.55) px(x, 0, 1, 1, shade(p.top, 1.22));
+      for (let i = 0; i < 3; i++) px(Math.floor(r() * 15), 1 + Math.floor(r() * 2), 1, 1, shade(p.top, 0.8));
     }
   }
   return c;
 }
+// ===== Leaves: soft rounded clumps a little bigger than a block, so a crown blends into one canopy =====
+// lit 0 = top of the crown (sunlit), 1 = inside, 2 = underside (shadowed)
+const leafTex = {};
+const LEAF_S = 24;
+function makeLeafSprite(id, v, lit) {
+  const c = document.createElement('canvas'); c.width = c.height = LEAF_S;
+  const g = c.getContext('2d'), p = TP[id], r = rngMaker(id * 313 + v * 71 + lit * 17 + 5);
+  const base = lit === 0 ? shade(p.c, 1.1) : lit === 2 ? shade(p.c, 0.78) : p.c;
+  const dark = lit === 2 ? shade(p.c2, 0.75) : p.c2, light = shade(p.c, lit === 0 ? 1.45 : 1.22);
+  const dot = (x, y, rad, col) => { g.fillStyle = col; g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill(); };
+  if (p.pine) {
+    // layered needle fans pointing down and out, darker underneath, frosted on top
+    for (let i = 0; i < 10; i++) {
+      const x = 5 + r() * 14, y = 6 + r() * 13;
+      g.fillStyle = r() < 0.55 ? base : dark;
+      g.beginPath(); g.moveTo(x - 6, y + 4); g.lineTo(x, y - 4); g.lineTo(x + 6, y + 4); g.lineTo(x, y + 2); g.closePath(); g.fill();
+    }
+    g.fillStyle = light;
+    for (let i = 0; i < 12; i++) { const x = 4 + r() * 16, y = 4 + r() * 16; g.fillRect(x, y, 2, 1); }
+    if (lit === 0) { g.fillStyle = 'rgba(236,244,255,0.85)'; for (let i = 0; i < 5; i++) g.fillRect(5 + r() * 13, 4 + r() * 5, 3, 1.5); }
+  } else {
+    for (let i = 0; i < 7; i++) dot(12 + (r() - 0.5) * 10, 13 + (r() - 0.5) * 9, 4 + r() * 2.5, dark);
+    for (let i = 0; i < 9; i++) dot(12 + (r() - 0.5) * 12, 11 + (r() - 0.5) * 10, 3 + r() * 2, base);
+    const nl = lit === 0 ? 7 : lit === 1 ? 4 : 1;
+    for (let i = 0; i < nl; i++) dot(7 + r() * 10, 5 + r() * (lit === 0 ? 6 : 11), 1.5 + r() * 1.6, light);
+    for (let i = 0; i < 12; i++) { g.fillStyle = r() < 0.5 ? light : dark; g.fillRect(4 + r() * 16, 4 + r() * 16, 2, 1); }
+  }
+  return c;
+}
 const bgTex = {};
+// cave back-walls: four variants each, with mottling, stones and cracks
 function makeBgTex(name, base, c2, brick) {
-  const c = document.createElement('canvas'); c.width = c.height = TILE;
-  const g = c.getContext('2d'), r = rngMaker(name.length * 99 + 3);
-  g.fillStyle = base; g.fillRect(0, 0, 16, 16);
-  g.fillStyle = c2;
-  if (brick) {
-    for (let row = 0; row < 2; row++) { g.fillRect(0, row * 8 + 7, 16, 1); g.fillRect(row % 2 ? 8 : 0, row * 8, 1, 7); }
-  } else for (let i = 0; i < 10; i++) g.fillRect(Math.floor(r() * 15), Math.floor(r() * 15), 2, 2);
-  bgTex[name] = c;
+  bgTex[name] = [];
+  for (let v = 0; v < 4; v++) {
+    const c = document.createElement('canvas'); c.width = c.height = TILE;
+    const g = c.getContext('2d'), r = rngMaker(name.length * 99 + v * 37 + 3);
+    g.fillStyle = base; g.fillRect(0, 0, 16, 16);
+    if (brick) {
+      g.fillStyle = c2;
+      for (let row = 0; row < 2; row++) { g.fillRect(0, row * 8 + 7, 16, 1); g.fillRect(row % 2 ? 8 : 0, row * 8, 1, 7); }
+      for (let i = 0; i < 4; i++) { g.fillStyle = shade(base, 1.12); g.fillRect(Math.floor(r() * 15), Math.floor(r() * 15), 1, 1); }
+    } else {
+      g.globalAlpha = 0.6;
+      for (let cy = 0; cy < 16; cy += 4) for (let cx = 0; cx < 16; cx += 4) { g.fillStyle = shade(base, 0.88 + r() * 0.24); g.fillRect(cx, cy, 4, 4); }
+      g.globalAlpha = 1; g.fillStyle = c2;
+      for (let i = 0; i < 8; i++) g.fillRect(Math.floor(r() * 15), Math.floor(r() * 15), 2, 2);
+      for (let i = 0; i < 2; i++) { const sx = Math.floor(r() * 12), sy = Math.floor(r() * 13); g.fillStyle = shade(base, 1.2); g.fillRect(sx, sy, 3, 1); g.fillStyle = shade(base, 0.7); g.fillRect(sx, sy + 2, 3, 1); }
+      if (r() < 0.6) { g.fillStyle = shade(base, 0.6); let cx = Math.floor(r() * 14), cy = 0; for (let i = 0; i < 7; i++) { g.fillRect(cx, cy, 1, 2); cy += 2; cx += r() < 0.5 ? 1 : -1; } }
+    }
+    bgTex[name].push(c);
+  }
 }
 function initTextures() {
   for (let id = 0; id < TP.length; id++) {
     tileTex[id] = [];
     if (!TP[id] || id === T.AIR || TP[id].deco || TP[id].liquid) continue;
     for (let v = 0; v < VARIANTS; v++) tileTex[id].push(makeTileTex(id, v));
+    if (TP[id].leaves) leafTex[id] = [0, 1, 2].map(lit => [0, 1, 2, 3].map(v => makeLeafSprite(id, v, lit)));
   }
   makeBgTex('dirt', '#3b2618', '#311f13');
   makeBgTex('stone', '#2f3036', '#27282d');
