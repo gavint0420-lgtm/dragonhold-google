@@ -1,0 +1,11 @@
+# Render blueprint: runs Dragonhold 24/7 at one permanent link.
+# Every push to main on GitHub redeploys it automatically.
+services:
+  - type: web
+    name: dragonhold
+    runtime: node
+    plan: free
+    buildCommand: echo "No build step needed"
+    startCommand: node server/server.js
+    healthCheckPath: /version
+    autoDeploy: true

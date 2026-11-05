@@ -13,6 +13,10 @@ Two AI agents share this project through its GitHub repository: Claude Code on t
 
 If GitHub says your copy is behind, pull first and keep both agents' changes. Never overwrite or revert work you didn't make unless the owner asks.
 
+## Pushing to `main` updates the live game
+
+The game runs 24/7 on Render (set up by `render.yaml`). Every push to `main` is deployed there automatically within a few minutes, and players see the "Save and update" bar. So only push code you've tested. The server must keep working with plain `node server/server.js` (no packages to install) and read its port from `PORT`.
+
 ## Never
 
 - Add or commit `server/dev.key`. It's private and listed in `.gitignore`.
