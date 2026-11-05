@@ -223,28 +223,33 @@ function updateNPCs() {
 function starterSwapDialog() {
   const starters = Object.values(STARTER_WEAPONS);
   const pick = (kind) => {
-    const want = STARTER_WEAPONS[kind];
-    let slot = null;
-    for (const arr of [hotbar, inv]) for (const s of arr) if (!slot && s && starters.includes(s.id)) slot = s;
-    if (slot && slot.id === want) { closeDialog(); toast(`You already carry the ${ITEMS[want].name}.`); return; }
-    if (slot) { const old = slot.id; slot.id = want; refreshSlots(); toast(`Sir Aldric takes your ${ITEMS[old].name} and hands you the ${ITEMS[want].name}.`, 'gold'); }
-    else { addItem(want, 1, false, true); toast(`Sir Aldric hands you the ${ITEMS[want].name}.`, 'gold'); }
+    const want = STARTER_KITS[kind];
+    // every starter weapon you carry, in the order they sit in your bags
+    const slots = [];
+    for (const arr of [hotbar, inv]) arr.forEach((s, i) => { if (s && starters.includes(s.id)) slots.push({arr, i, id:s.id}); });
+    const have = slots.map(s => s.id);
+    if (want.every(id => have.includes(id)) && have.every(id => want.includes(id))) { closeDialog(); toast(`You are already a ${CLASS_NAMES[kind]}.`); return; }
+    // the new kit takes the old starters' slots; leftovers are removed, missing pieces are added
+    const old = [...new Set(have)].map(id => ITEMS[id].name);
+    slots.forEach((s, n) => { if (n < want.length) s.arr[s.i] = {id:want[n], n:1}; else s.arr[s.i] = null; });
+    for (const id of want.slice(slots.length)) addItem(id, 1, false, true);
+    refreshSlots();
+    const given = want.map(id => ITEMS[id].name).join(' and the ');
+    toast(old.length ? `Sir Aldric takes your ${old.join(' and ')} and hands you the ${given}.` : `Sir Aldric hands you the ${given}.`, 'gold');
     if (kind === 'wand' && countItem('pot_m1') < 3) addItem('pot_m1', 3, false, true);
     try { setStartWeapon(kind); } catch (e) {}
     if (player) player.heroClass = kind;
     closeDialog();
   };
-  openDialog({speaker:'Sir Aldric', title:'Choose your class & weapon',
+  openDialog({speaker:'Sir Aldric', title:'Choose your class',
     text:`<p>Every warrior fights differently. Choose your path:</p>
-      <p><b>Knight (Broadsword):</b> polished plate armor, wide sweeping hit radius, high damage & knockback.<br>
-      <b>Rogue (Bow):</b> shadow cowl & cloak, long-range aimed arrows with piercing Power Shot.<br>
-      <b>Rogue (Dagger):</b> shadow cowl & cloak, rapid stabs, 15% critical hits.<br>
-      <b>Wizard (Wand):</b> wizard hat & celestial robes, ranged magic that slows, uses mana.</p>`,
+      <p><b>Knight:</b> polished plate armor and a broadsword with a wide sweep, high damage and knockback.<br>
+      <b>Rogue:</b> shadow cowl and cloak. Carries a <b>dagger</b> for fast stabs (15% critical hits) and a <b>bow</b> for aimed arrows with a piercing Power Shot. Switch between them on your hotbar.<br>
+      <b>Wizard:</b> wizard hat and celestial robes, ranged magic that slows, uses mana.</p>`,
     buttons:[
-      {label:'Knight (Broadsword)', fn:() => pick('sword')},
-      {label:'Rogue (Bow)', fn:() => pick('bow')},
-      {label:'Rogue (Dagger)', fn:() => pick('dagger')},
-      {label:'Wizard (Wand)', fn:() => pick('wand')},
+      {label:'Knight', fn:() => pick('sword')},
+      {label:'Rogue', fn:() => pick('dagger')},
+      {label:'Wizard', fn:() => pick('wand')},
       {label:'Never mind', fn:closeDialog}
     ]});
 }

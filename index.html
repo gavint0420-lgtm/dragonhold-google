@@ -423,12 +423,11 @@ textarea { width: 100%; box-sizing: border-box; height: 90px; background: var(--
       <a class="btn" id="btnDownload" href="download/Dragonhold.zip" download="Dragonhold.zip" hidden>Download the game</a>
     </div>
     <div class="coop-box diff-box" id="diffBox" hidden>
-      <div class="diff-head">Starting weapon</div>
-      <div class="wpn-pick" role="radiogroup" aria-label="Starting weapon">
-        <button class="btn wpn-btn" data-wpn="sword" role="radio"><b>Broadsword</b><small>Knight · heavy sweeps & knockback</small></button>
-        <button class="btn wpn-btn" data-wpn="bow" role="radio"><b>Bow</b><small>Rogue · aimed arrows & power shot</small></button>
-        <button class="btn wpn-btn" data-wpn="dagger" role="radio"><b>Dagger</b><small>Rogue · fast stabs, 15% crits</small></button>
-        <button class="btn wpn-btn" data-wpn="wand" role="radio"><b>Wand</b><small>Wizard · ranged sparks, slows</small></button>
+      <div class="diff-head">Choose your class</div>
+      <div class="wpn-pick" role="radiogroup" aria-label="Class">
+        <button class="btn wpn-btn" data-wpn="sword" role="radio"><b>Knight</b><small>Broadsword · heavy sweeps & knockback</small></button>
+        <button class="btn wpn-btn" data-wpn="dagger" role="radio"><b>Rogue</b><small>Dagger + bow · fast stabs, aimed arrows</small></button>
+        <button class="btn wpn-btn" data-wpn="wand" role="radio"><b>Wizard</b><small>Wand · ranged sparks, slows</small></button>
       </div>
       <div class="diff-head">Choose your difficulty</div>
       <button class="btn diff-btn" data-diff="easy"><b>Easy</b><small></small></button>
@@ -464,14 +463,13 @@ textarea { width: 100%; box-sizing: border-box; height: 90px; background: var(--
         <div class="hint">You bring your own co-op knight, items and level, saved on this computer.</div>
       </div>
       <div class="coop-sec">
-        <div class="sub-head">Starting weapon <span class="sub-note">for a new world or a brand-new co-op knight</span></div>
-        <div class="wpn-pick" role="radiogroup" aria-label="Starting weapon">
-          <button class="btn wpn-btn" data-wpn="sword" role="radio"><b>Broadsword</b><small>Knight · heavy sweep</small></button>
-          <button class="btn wpn-btn" data-wpn="bow" role="radio"><b>Bow</b><small>Rogue · ranged arrows</small></button>
-          <button class="btn wpn-btn" data-wpn="dagger" role="radio"><b>Dagger</b><small>Rogue · fast crits</small></button>
-          <button class="btn wpn-btn" data-wpn="wand" role="radio"><b>Wand</b><small>Wizard · spells</small></button>
+        <div class="sub-head">Class <span class="sub-note">for a new world or a brand-new co-op character</span></div>
+        <div class="wpn-pick" role="radiogroup" aria-label="Class">
+          <button class="btn wpn-btn" data-wpn="sword" role="radio"><b>Knight</b><small>Broadsword</small></button>
+          <button class="btn wpn-btn" data-wpn="dagger" role="radio"><b>Rogue</b><small>Dagger + bow</small></button>
+          <button class="btn wpn-btn" data-wpn="wand" role="radio"><b>Wizard</b><small>Wand · spells</small></button>
         </div>
-        <div class="hint">Already have a knight? Talk to Sir Aldric in the village to swap your weapon.</div>
+        <div class="hint">Already playing? Talk to Sir Aldric in the village to change your class.</div>
       </div>
       <div id="coopStatus" role="status"></div>
       <div class="hint" id="coopNote" hidden>Online co-op needs the Dragonhold server. The host runs <kbd>node server/server.js</kbd> in the dragonhold folder, then everyone opens the link it prints.</div>

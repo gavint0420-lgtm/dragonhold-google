@@ -917,16 +917,18 @@ function resetRuntime() {
   mods = new Map(); hotbar = new Array(HOTBAR_SIZE).fill(null); inv = new Array(30).fill(null); sel = 0; held = null;
 }
 // The weapon picked on the title screen (remembered on this computer), and the kit a new knight starts with.
+// Classes: 'sword' = Knight, 'dagger' = Rogue (dagger AND bow), 'wand' = Wizard. Old 'bow' picks count as Rogue.
 let startWeapon = 'sword';
-try { const w = localStorage.getItem('dragonhold_start_weapon'); if (STARTER_WEAPONS[w]) startWeapon = w; } catch (e) {}
+try { const w = classOf(localStorage.getItem('dragonhold_start_weapon')); if (STARTER_KITS[w]) startWeapon = w; } catch (e) {}
 function setStartWeapon(w) {
-  if (!STARTER_WEAPONS[w]) return;
+  w = classOf(w);
+  if (!STARTER_KITS[w]) return;
   startWeapon = w;
   try { localStorage.setItem('dragonhold_start_weapon', w); } catch (e) {}
   for (const b of document.querySelectorAll('.wpn-btn')) b.setAttribute('aria-checked', String(b.dataset.wpn === w));
 }
 function giveStarterKit() {
-  addItem(STARTER_WEAPONS[startWeapon] || 'squire_blade', 1, false, true);
+  for (const id of STARTER_KITS[startWeapon] || STARTER_KITS.sword) addItem(id, 1, false, true);
   addItem('pick_old', 1, false, true);
   addItem('torch', 15, false, true);
   addItem('pot_h1', 5, false, true);

@@ -131,6 +131,10 @@ wpn('squire_dirk', "Squire's Dirk", 'dagger', 6, {fx:'steady', col:'#d8dce4', fx
 wpn('rogue_bow', "Rogue's Bow", 'bow', 12, {fx:'steady', col:'#8b5a2b', fxName:'Steady', fxDesc:'+15% damage while at full health.'});
 wpn('apprentice_wand', 'Apprentice Wand', 'wand', 10, {fx:'slow', mana:2, cd:0.4, proj:'spark', col:'#c08cff', fxName:'Arcane Chill', fxDesc:'Sparks slow enemies by 40% for 2s.'});
 const STARTER_WEAPONS = {sword:'squire_blade', dagger:'squire_dirk', wand:'apprentice_wand', bow:'rogue_bow'};
+// Three classes. The Rogue fights with both a dagger (close) and a bow (far).
+const STARTER_KITS = {sword:['squire_blade'], dagger:['squire_dirk', 'rogue_bow'], wand:['apprentice_wand']};
+const CLASS_NAMES = {sword:'Knight', dagger:'Rogue', wand:'Wizard'};
+function classOf(w) { return w === 'bow' ? 'dagger' : w; }
 wpn('rusty_dagger', 'Rusty Dagger', 'dagger', 6, {fx:'slow', col:'#a8683a', fxName:'Tetanus', fxDesc:'30% chance to slow enemies by 40% for 2s.'});
 wpn('wooden_club', 'Wooden Club', 'mace', 15, {fx:'knock', col:'#8a5c2e', fxName:'Bonk', fxDesc:'Knocks enemies far back.'});
 wpn('bone_sword', 'Bone Sword', 'sword', 13, {fx:'shards', col:'#ece5cf', fxName:'Bone Shards', fxDesc:'Hits spray bone shards that hurt nearby enemies.'});

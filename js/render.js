@@ -180,28 +180,23 @@ function drawWeaponShape(g, item, s = 1) {
     rr(g, -1, -14, 2, 16, '#5a3f26'); rr(g, -1.5, -14, 3, 2, '#c9a86a');
     g.globalAlpha = 0.45; circ(g, 0, -17, 5, c); g.globalAlpha = 1; circ(g, 0, -17, 3, c); circ(g, -0.8, -17.8, 1, '#fff');
   } else if (item.wt === 'bow') {
+    // Like every weapon here it points up (-y) from the grip, so it turns to wherever you aim:
+    // the stave bends toward the target, the string sits behind it, the nocked arrow points forward.
     const wood = item.col || '#8b5a2b';
+    const half = 0.85, rad = 12, cy = 10;             // stave arc: apex at (0,-2), tips at (±9, 2)
+    const tipX = Math.sin(half) * rad, tipY = cy - Math.cos(half) * rad;
     g.strokeStyle = wood; g.lineWidth = 2.4; g.lineCap = 'round';
-    // curved stave
-    g.beginPath();
-    g.arc(-4, -10, 11, -Math.PI * 0.45, Math.PI * 0.45);
-    g.stroke();
-    // bowstring
+    g.beginPath(); g.arc(0, cy, rad, -Math.PI / 2 - half, -Math.PI / 2 + half); g.stroke();
+    // bowstring pulled back to the nock
     g.strokeStyle = '#e8ecf4'; g.lineWidth = 0.9;
-    g.beginPath();
-    const yTop = -10 - Math.sin(Math.PI * 0.45) * 11;
-    const xTop = -4 + Math.cos(Math.PI * 0.45) * 11;
-    const yBot = -10 + Math.sin(Math.PI * 0.45) * 11;
-    const xBot = -4 + Math.cos(Math.PI * 0.45) * 11;
-    g.moveTo(xTop, yTop);
-    g.lineTo(xTop - 4, -10);
-    g.lineTo(xBot, yBot);
-    g.stroke();
-    // leather grip wrap
-    rr(g, -5.2, -12, 2.5, 4, shade(wood, 0.65));
-    // resting nocked arrow
-    rr(g, -3, -10.5, 12, 1.2, '#d4c4a8');
-    tri(g, 9, -12, 9, -9, 13, -10.5, '#e0e4ec');
+    g.beginPath(); g.moveTo(-tipX, tipY); g.lineTo(0, 5); g.lineTo(tipX, tipY); g.stroke();
+    // nocked arrow: shaft, head and fletching
+    rr(g, -0.6, -14, 1.2, 19, '#d4c4a8');
+    tri(g, -2.4, -14, 2.4, -14, 0, -18.5, '#e0e4ec');
+    tri(g, 0, 5, -2.2, 6.5, 0, 2, '#ffffff'); tri(g, 0, 5, 2.2, 6.5, 0, 2, '#ffffff');
+    // leather grip wrap where the hand holds it
+    rr(g, -2, -3.4, 4, 2.6, shade(wood, 0.65));
+    g.lineCap = 'butt';
   } else if (item.kind === 'block') {
     const tex = tileTex[item.tile] && tileTex[item.tile][0];
     if (tex) g.drawImage(tex, -4, -10, 8, 8); else { rr(g, -3, -9, 6, 6, item.col); }
