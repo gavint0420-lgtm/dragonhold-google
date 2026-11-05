@@ -60,7 +60,9 @@ function handleHttp(req, res, rootDir = ROOT) {
   }
   if (url === '/') url = '/index.html';
   const file = path.resolve(rootDir, '.' + url);
-  if (!file.startsWith(rootDir + path.sep) || file.includes(`${path.sep}server${path.sep}`)) {
+  // never serve the server folder (it holds dev.key) or hidden files/folders such as .git and .env
+  const hidden = path.relative(rootDir, file).split(path.sep).some(part => part.startsWith('.'));
+  if (!file.startsWith(rootDir + path.sep) || file.includes(`${path.sep}server${path.sep}`) || hidden) {
     res.writeHead(403); res.end('Forbidden'); return;
   }
   fs.readFile(file, (err, data) => {
@@ -224,13 +226,14 @@ function onData(client, chunk) {
 }
 
 // ---------- attach minimal WebSocket (RFC 6455) to an HTTP server ----------
-function attachWebSocket(httpServer) {
+// shared: true when another tool (e.g. a Vite dev server) also handles upgrades on this server.
+function attachWebSocket(httpServer, {shared = false} = {}) {
   httpServer.on('upgrade', (req, socket, head) => {
     const urlPath = (req.url || '').split('?')[0].replace(/\/+$/, '') || '/';
     const upgradeHdr = (req.headers.upgrade || '').toLowerCase();
     if (urlPath !== '/ws' || !upgradeHdr.includes('websocket')) {
-      // Do not destroy Vite HMR websockets or other endpoints
-      if (urlPath !== '/ws') return;
+      // leave other tools' websockets alone when shared; on our own server, close stray connections
+      if (urlPath !== '/ws' && shared) return;
       socket.destroy();
       return;
     }
