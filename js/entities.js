@@ -137,7 +137,16 @@ function hurtPlayer(amt, srcX, opt = {}) {
   let d = amt * (1 - red);
   if (opt.fire && p.armorId === 'armor_dragon') d *= 0.6;
   d = Math.max(1, Math.round(d));
+  // Survive at 1 health: if you're at FULL health and this one hit would kill you, you're left on 1 health instead.
+  // (Only from full health, so the next big hit can still finish you.)
+  const survive = p.hp >= p.maxHp - 0.5 && d >= p.hp && p.hp > 1;
+  if (survive) {
+    d = Math.round(p.hp - 1);
+    addFloater(ecx(p), p.y - 16, 'SURVIVED!', '#ffd45a', true);
+    toast('That hit should have killed you! You survived on 1 health. Heal up fast!', 'red');
+  }
   p.hp -= d; p.iframes = 0.65; p.lastHurt = G.time;
+  if (survive) p.hp = 1;
   if (!opt.noKb) { p.vx = Math.sign(ecx(p) - srcX || 1) * 230; p.vy = -190; }
   addFloater(ecx(p), p.y, d, '#ff5a5a');
   shake(3);
