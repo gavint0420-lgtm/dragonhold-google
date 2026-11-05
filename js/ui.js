@@ -236,10 +236,17 @@ function starterSwapDialog() {
   };
   openDialog({speaker:'Sir Aldric', title:'Choose your class & weapon',
     text:`<p>Every warrior fights differently. Choose your path:</p>
-      <p><b>Knight (Sword):</b> polished armor, balanced reach and damage.<br>
-      <b>Rogue Assassin (Dagger):</b> shadow cowl & cloak, fast stabs, 15% critical hits.<br>
+      <p><b>Knight (Broadsword):</b> polished plate armor, wide sweeping hit radius, high damage & knockback.<br>
+      <b>Rogue (Bow):</b> shadow cowl & cloak, long-range aimed arrows with piercing Power Shot.<br>
+      <b>Rogue (Dagger):</b> shadow cowl & cloak, rapid stabs, 15% critical hits.<br>
       <b>Wizard (Wand):</b> wizard hat & celestial robes, ranged magic that slows, uses mana.</p>`,
-    buttons:[{label:'Knight (Sword)', fn:() => pick('sword')}, {label:'Rogue Assassin (Dagger)', fn:() => pick('dagger')}, {label:'Wizard (Wand)', fn:() => pick('wand')}, {label:'Never mind', fn:closeDialog}]});
+    buttons:[
+      {label:'Knight (Broadsword)', fn:() => pick('sword')},
+      {label:'Rogue (Bow)', fn:() => pick('bow')},
+      {label:'Rogue (Dagger)', fn:() => pick('dagger')},
+      {label:'Wizard (Wand)', fn:() => pick('wand')},
+      {label:'Never mind', fn:closeDialog}
+    ]});
 }
 function talkTo(n) {
   if (n.shop) {
@@ -614,12 +621,17 @@ function updateHUD(force) {
   }
   const night = isNight();
   $('timeText').textContent = night ? 'Night' : 'Day';
-  // Arcane Burst cooldown, shown while holding a wand
+  // Arcane Burst or Power Shot cooldown, shown while holding a wand or bow
   const s = hotbar[sel], it = s ? ITEMS[s.id] : null, el = $('spellCd');
   if (it && it.wt === 'wand') {
     const w = burstWait();
     el.hidden = false;
     el.textContent = w > 0 ? `Arcane Burst: ${w.toFixed(1)}s` : 'Arcane Burst ready · right click or X';
+    el.classList.toggle('ready', w <= 0);
+  } else if (it && it.wt === 'bow') {
+    const w = typeof powerShotWait === 'function' ? powerShotWait() : 0;
+    el.hidden = false;
+    el.textContent = w > 0 ? `Power Shot: ${w.toFixed(1)}s` : 'Power Shot ready · right click or X';
     el.classList.toggle('ready', w <= 0);
   } else el.hidden = true;
 }

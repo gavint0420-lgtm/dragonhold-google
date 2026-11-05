@@ -179,6 +179,29 @@ function drawWeaponShape(g, item, s = 1) {
   } else if (item.wt === 'wand') {
     rr(g, -1, -14, 2, 16, '#5a3f26'); rr(g, -1.5, -14, 3, 2, '#c9a86a');
     g.globalAlpha = 0.45; circ(g, 0, -17, 5, c); g.globalAlpha = 1; circ(g, 0, -17, 3, c); circ(g, -0.8, -17.8, 1, '#fff');
+  } else if (item.wt === 'bow') {
+    const wood = item.col || '#8b5a2b';
+    g.strokeStyle = wood; g.lineWidth = 2.4; g.lineCap = 'round';
+    // curved stave
+    g.beginPath();
+    g.arc(-4, -10, 11, -Math.PI * 0.45, Math.PI * 0.45);
+    g.stroke();
+    // bowstring
+    g.strokeStyle = '#e8ecf4'; g.lineWidth = 0.9;
+    g.beginPath();
+    const yTop = -10 - Math.sin(Math.PI * 0.45) * 11;
+    const xTop = -4 + Math.cos(Math.PI * 0.45) * 11;
+    const yBot = -10 + Math.sin(Math.PI * 0.45) * 11;
+    const xBot = -4 + Math.cos(Math.PI * 0.45) * 11;
+    g.moveTo(xTop, yTop);
+    g.lineTo(xTop - 4, -10);
+    g.lineTo(xBot, yBot);
+    g.stroke();
+    // leather grip wrap
+    rr(g, -5.2, -12, 2.5, 4, shade(wood, 0.65));
+    // resting nocked arrow
+    rr(g, -3, -10.5, 12, 1.2, '#d4c4a8');
+    tri(g, 9, -12, 9, -9, 13, -10.5, '#e0e4ec');
   } else if (item.kind === 'block') {
     const tex = tileTex[item.tile] && tileTex[item.tile][0];
     if (tex) g.drawImage(tex, -4, -10, 8, 8); else { rr(g, -3, -9, 6, 6, item.col); }
@@ -226,6 +249,7 @@ const CLASS_LOOK = {
     armor_dragon: {body:'#581a24', trim:'#ffd700', legs:'#3e121a', boots:'#280a10', hat:'#4c141e', dress:true, cape:'#280812', glove:'#f5cc45', beard:'#f5e6d0', arcaneEye:'#ffcc00'}
   }
 };
+CLASS_LOOK.bow = CLASS_LOOK.dagger; // Rogue class look for Bow
 const OUTLINE = 'rgba(22,14,10,0.9)';
 function rrect(g, x, y, w, h, r) {
   g.beginPath();
@@ -460,21 +484,29 @@ function drawKnight(g, p, time) {
   const bob = drawHumanoid(g, o, time);
   // near arm and held item
   const item = p.heldItem;
+  if (item && item.wt === 'bow') {
+    // leather quiver with fletched arrows on back
+    g.save(); g.translate(-3.5, -17 + bob); g.rotate(-0.35);
+    rr(g, -2, -9, 4, 13, '#3e2c1c');
+    tri(g, -1.8, -9, -0.6, -14, 0.4, -9, '#ffffff');
+    tri(g, 0, -9, 1.2, -15, 2.2, -9, '#ffaa44');
+    g.restore();
+  }
   let ang = -0.28 + Math.sin(time * 2.2) * 0.04, wr = 1.05, trail = 0;
-  const melee = item && ((item.kind === 'weapon' && item.wt !== 'wand') || item.kind === 'tool');
+  const melee = item && ((item.kind === 'weapon' && item.wt !== 'wand' && item.wt !== 'bow') || item.kind === 'tool');
   if (p.swingT > 0 && melee) {
     const k = 1 - p.swingT / p.swingDur, e = 1 - Math.pow(1 - k, 2.2);
     ang = lerp(-3.4, -0.55, e); wr = Math.PI; trail = k;
-  } else if (item && item.wt === 'wand') {
+  } else if (item && (item.wt === 'wand' || item.wt === 'bow')) {
     ang = (p.aimLocal || 0) - Math.PI / 2; wr = Math.PI;
   } else if (p.mining) {
     const k = (time * 3.2) % 1, e = k < 0.7 ? k / 0.7 : 1 - (k - 0.7) / 0.3;
     ang = lerp(-3.1, -0.7, e); wr = Math.PI;
   } else if (item && (item.kind === 'potion' || item.kind === 'block' || item.kind === 'lure')) { ang = -0.5; wr = Math.PI * 0.55; }
   const sx = 1.6, sy = -19.6 + bob;
-  // motion trail for sword swings
+  // motion trail for broadsword and weapon swings
   if (trail > 0 && item.kind === 'weapon') {
-    const reach = 8 + WTYPE[item.wt].range * 0.5;
+    const reach = 8 + (item.range || (WTYPE[item.wt] && WTYPE[item.wt].range) || 46) * 0.52;
     const a1 = lerp(-3.4, -0.55, 1 - Math.pow(1 - Math.max(0, trail - 0.45), 2.2)), a2 = ang;
     g.save(); g.translate(sx, sy);
     const col = item.rareFlag ? '255,212,90' : '255,255,255';
@@ -1173,6 +1205,22 @@ function drawProjectile(g, p, time) {
       circ(g, p.x, p.y, p.r, '#f5cc45'); circ(g, p.x - 0.8, p.y - 0.8, p.r * 0.4, '#fff2a8'); break;
     case 'thorn':
       g.save(); g.translate(p.x, p.y); g.rotate(Math.atan2(p.vy, p.vx)); rr(g, -5, -1, 10, 2, '#5fbf4a'); tri(g, 5, -2, 5, 2, 8, 0, '#8fe07a'); g.restore(); break;
+    case 'arrow': case 'power_arrow': {
+      const isPower = p.type === 'power_arrow';
+      g.save(); g.translate(p.x, p.y); g.rotate(Math.atan2(p.vy, p.vx));
+      if (isPower) {
+        g.globalAlpha = 0.45; rr(g, -13, -3, 26, 6, '#ffd700'); g.globalAlpha = 1;
+      }
+      // arrow shaft
+      rr(g, -9, -0.9, 18, 1.8, isPower ? '#ffd060' : (p.col || '#8b5a2b'));
+      // arrowhead
+      tri(g, 7, -3.2, 7, 3.2, 13, 0, isPower ? '#ffffff' : '#e0e4ec');
+      // fletchings (feathers)
+      tri(g, -9, 0, -5, -3, -4, 0, isPower ? '#ff7a1a' : '#ffffff');
+      tri(g, -9, 0, -5, 3, -4, 0, isPower ? '#ff7a1a' : '#ffffff');
+      g.restore();
+      break;
+    }
     case 'shard':
       rr(g, p.x - 1.5, p.y - 1.5, 3, 3, '#ece5cf'); break;
     case 'flamewave':

@@ -117,18 +117,20 @@ it('gold_lure', {name:'Gold Lure', kind:'lure', stack:10, col:'#f5cc45', desc:'T
 // ===== Weapons =====
 const WTYPE = {
   dagger:{cd:0.22, range:35, kb:110, label:'Dagger · 15% critical hits', crit:0.15},
-  sword:{cd:0.38, range:46, kb:190, label:'Sword'},
+  sword:{cd:0.38, range:54, kb:280, label:'Broadsword · Heavy sweep & knockback'},
   mace:{cd:0.66, range:42, kb:320, label:'Mace'},
   wand:{cd:0.45, range:0, kb:60, label:'Wand'},
+  bow:{cd:0.40, range:0, kb:90, label:'Bow · Long-range aimed arrows', crit:0.15},
 };
 function wpn(id, name, wt, dmg, o) {
   it(id, Object.assign({name, kind:'weapon', stack:1, wt, dmg}, o));
 }
-wpn('squire_blade', "Squire's Blade", 'sword', 8, {fx:'steady', col:'#c8ccd6', fxName:'Steady', fxDesc:'+15% damage while at full health.'});
-// starting weapons (pick one when you begin a new knight)
+wpn('squire_blade', "Knight's Broadsword", 'sword', 16, {fx:'steady', range:58, kb:300, col:'#c8ccd6', fxName:'Steady', fxDesc:'+15% damage while at full health.'});
+// starting weapons (pick one when you begin a new adventure)
 wpn('squire_dirk', "Squire's Dirk", 'dagger', 6, {fx:'steady', col:'#d8dce4', fxName:'Steady', fxDesc:'+15% damage while at full health.'});
+wpn('rogue_bow', "Rogue's Bow", 'bow', 12, {fx:'steady', col:'#8b5a2b', fxName:'Steady', fxDesc:'+15% damage while at full health.'});
 wpn('apprentice_wand', 'Apprentice Wand', 'wand', 10, {fx:'slow', mana:2, cd:0.4, proj:'spark', col:'#c08cff', fxName:'Arcane Chill', fxDesc:'Sparks slow enemies by 40% for 2s.'});
-const STARTER_WEAPONS = {sword:'squire_blade', dagger:'squire_dirk', wand:'apprentice_wand'};
+const STARTER_WEAPONS = {sword:'squire_blade', dagger:'squire_dirk', wand:'apprentice_wand', bow:'rogue_bow'};
 wpn('rusty_dagger', 'Rusty Dagger', 'dagger', 6, {fx:'slow', col:'#a8683a', fxName:'Tetanus', fxDesc:'30% chance to slow enemies by 40% for 2s.'});
 wpn('wooden_club', 'Wooden Club', 'mace', 15, {fx:'knock', col:'#8a5c2e', fxName:'Bonk', fxDesc:'Knocks enemies far back.'});
 wpn('bone_sword', 'Bone Sword', 'sword', 13, {fx:'shards', col:'#ece5cf', fxName:'Bone Shards', fxDesc:'Hits spray bone shards that hurt nearby enemies.'});
@@ -148,18 +150,22 @@ wpn('iron_sword', 'Iron Sword', 'sword', 15, {fx:'steady', col:'#b9b9c4', fxName
 wpn('iron_dagger', 'Iron Dagger', 'dagger', 10, {fx:'slow', col:'#c8c8d2', fxName:'Hamstring', fxDesc:'30% chance to slow enemies by 40% for 2s.', crafted:true});
 wpn('iron_mace', 'Iron Mace', 'mace', 26, {fx:'knock', col:'#9a9aa6', fxName:'Bonk', fxDesc:'Knocks enemies far back.', crafted:true});
 wpn('gold_wand', 'Gilded Wand', 'wand', 18, {fx:'slow', mana:2, cd:0.38, proj:'spark', col:'#f5cc45', fxName:'Arcane Chill', fxDesc:'Sparks slow enemies by 40% for 2s.', crafted:true});
+wpn('iron_bow', 'Iron Recurve', 'bow', 18, {fx:'steady', col:'#b9b9c4', fxName:'Steady', fxDesc:'+15% damage while at full health.', crafted:true});
 wpn('steel_sword', 'Steel Longsword', 'sword', 30, {fx:'steady', col:'#8fa6c2', fxName:'Steady', fxDesc:'+15% damage while at full health.', crafted:true});
 wpn('steel_dagger', 'Steel Stiletto', 'dagger', 22, {fx:'poison', col:'#a6bcd8', fxName:'Poison', fxDesc:'Stacking poison (up to 5) deals damage over time.', crafted:true});
 wpn('steel_mace', 'Steel Warhammer', 'mace', 50, {fx:'quake', col:'#7d92ad', fxName:'Earthquake', fxDesc:'Every 3rd hit slams the ground and stuns enemies around you.', crafted:true});
 wpn('steel_wand', 'Frostbite Staff', 'wand', 34, {fx:'root', mana:3, cd:0.42, proj:'spark', sparkFx:'root', col:'#9fdcff', fxName:'Frostbite', fxDesc:'Frozen sparks hold enemies in place for 2s.', crafted:true});
+wpn('steel_bow', 'Steel Longbow', 'bow', 34, {fx:'steady', col:'#8fa6c2', fxName:'Steady', fxDesc:'+15% damage while at full health.', crafted:true});
 wpn('mythril_sword', 'Mythril Blade', 'sword', 52, {fx:'lifesteal', col:'#5ee8cf', fxName:'Soul Harvest', fxDesc:'Heal 8% of damage dealt. 20% crit chance.', crafted:true});
 wpn('mythril_dagger', 'Mythril Kris', 'dagger', 40, {fx:'lunar', col:'#7ff2dc', fxName:'Lunar Frenzy', fxDesc:'At night: attacks 35% faster and heal 10% of damage dealt.', crafted:true});
 wpn('mythril_mace', 'Mythril Maul', 'mace', 78, {fx:'shockwave', col:'#4fd2bb', fxName:'Shockwave', fxDesc:'Every hit sends a shockwave along the ground.', crafted:true});
 wpn('mythril_wand', 'Mythril Staff', 'wand', 56, {fx:'curse', mana:4, cd:0.4, proj:'hex', col:'#5ee8cf', fxName:'Curse Bolt', fxDesc:'Cursed enemies take 25% more damage from everything for 5s.', crafted:true});
+wpn('mythril_bow', 'Mythril Windrunner', 'bow', 56, {fx:'lifesteal', col:'#5ee8cf', fxName:'Soul Harvest', fxDesc:'Heal 8% of damage dealt. 20% crit chance.', crafted:true});
 wpn('wyrm_sword', 'Wyrmfire Blade', 'sword', 82, {fx:'dragonfire', col:'#ff6a2a', fxName:'Dragonfire', fxDesc:'Sets enemies on fire. Swings send out a wave of flame.', crafted:true});
 wpn('wyrm_dagger', 'Wyrmtooth Dagger', 'dagger', 60, {fx:'bloodrage', col:'#ff8a4a', fxName:'Bloodrage', fxDesc:'Up to +100% damage the lower your health is.', crafted:true});
 wpn('wyrm_mace', 'Wyrmbone Hammer', 'mace', 112, {fx:'shockwave', col:'#e0c8a0', fxName:'Shockwave', fxDesc:'Every hit sends a shockwave along the ground.', crafted:true});
 wpn('wyrm_wand', 'Wyrmfire Staff', 'wand', 84, {fx:'burn', mana:5, cd:0.4, proj:'spark', sparkFx:'burn', col:'#ff7a2a', fxName:'Dragonfire', fxDesc:'Fiery sparks set enemies ablaze.', crafted:true});
+wpn('wyrm_bow', 'Dragonbreath Bow', 'bow', 88, {fx:'dragonfire', col:'#ff6a2a', fxName:'Dragonfire', fxDesc:'Sets enemies on fire. Flaming arrows leave a fiery scorch.', crafted:true});
 // boss weapons
 wpn('coin_scepter', "Goblin King's Scepter", 'wand', 13, {fx:'coin', mana:2, cd:0.32, proj:'coin', col:'#f5cc45', fxName:'Greed', fxDesc:'Fires bouncing coins. Enemies it kills drop double coins.', boss:true});
 wpn('thornroot', 'Thornroot Wand', 'wand', 34, {fx:'root', mana:5, cd:0.5, proj:'thorn', col:'#5fbf4a', fxName:'Bramble Lash', fxDesc:'Thorns pierce through every enemy in a line and root each one for 2s.', boss:true});
@@ -292,18 +298,22 @@ const RECIPES = [
   {out:'iron_dagger', n:1, st:'anvil', in:[['iron_bar',5],['wood',1]]},
   {out:'iron_mace', n:1, st:'anvil', in:[['iron_bar',10],['wood',4]]},
   {out:'gold_wand', n:1, st:'anvil', in:[['gold_bar',5],['wood',4]]},
+  {out:'iron_bow', n:1, st:'anvil', in:[['iron_bar',7],['wood',5]]},
   {out:'steel_sword', n:1, st:'anvil', in:[['steel_bar',10],['iron_sword',1]]},
   {out:'steel_dagger', n:1, st:'anvil', in:[['steel_bar',7],['iron_dagger',1]]},
   {out:'steel_mace', n:1, st:'anvil', in:[['steel_bar',12],['iron_mace',1]]},
   {out:'steel_wand', n:1, st:'anvil', in:[['steel_bar',6],['gold_bar',4],['gold_wand',1]]},
+  {out:'steel_bow', n:1, st:'anvil', in:[['steel_bar',9],['iron_bow',1]]},
   {out:'mythril_sword', n:1, st:'anvil', in:[['mythril_bar',12],['steel_sword',1]]},
   {out:'mythril_dagger', n:1, st:'anvil', in:[['mythril_bar',8],['steel_dagger',1]]},
   {out:'mythril_mace', n:1, st:'anvil', in:[['mythril_bar',14],['steel_mace',1]]},
   {out:'mythril_wand', n:1, st:'anvil', in:[['mythril_bar',8],['gold_bar',4],['steel_wand',1]]},
+  {out:'mythril_bow', n:1, st:'anvil', in:[['mythril_bar',10],['steel_bow',1]]},
   {out:'wyrm_sword', n:1, st:'anvil', in:[['dragonscale',8],['obsidian',10],['mythril_sword',1]]},
   {out:'wyrm_dagger', n:1, st:'anvil', in:[['dragonscale',6],['obsidian',6],['mythril_dagger',1]]},
   {out:'wyrm_mace', n:1, st:'anvil', in:[['dragonscale',10],['obsidian',14],['mythril_mace',1]]},
   {out:'wyrm_wand', n:1, st:'anvil', in:[['dragonscale',8],['obsidian',8],['mythril_wand',1]]},
+  {out:'wyrm_bow', n:1, st:'anvil', in:[['dragonscale',8],['obsidian',8],['mythril_bow',1]]},
   {out:'pot_h1', n:1, st:'alchemy', in:[['herb_red',2]]},
   {out:'pot_m1', n:1, st:'alchemy', in:[['herb_blue',2]]},
   {out:'pot_h2', n:1, st:'alchemy', in:[['herb_swamp',1],['herb_red',1]]},

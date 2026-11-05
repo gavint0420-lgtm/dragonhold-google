@@ -130,7 +130,7 @@ a.btn { display: block; text-align: center; text-decoration: none; box-sizing: b
 .seg-btn small { font-size: 11px; font-weight: 400; opacity: 0.8; line-height: 1.2; }
 .seg-btn[aria-checked="true"] { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); color: var(--gold); }
 .seg-btn:disabled { opacity: 0.4; cursor: default; }
-.wpn-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.wpn-pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 6px; }
 .wpn-btn { display: grid; gap: 2px; padding: 8px 6px; text-align: center; }
 .wpn-btn b { font-size: 15px; }
 .wpn-btn small { font-size: 11px; font-weight: 400; opacity: 0.8; line-height: 1.2; }
@@ -425,9 +425,10 @@ textarea { width: 100%; box-sizing: border-box; height: 90px; background: var(--
     <div class="coop-box diff-box" id="diffBox" hidden>
       <div class="diff-head">Starting weapon</div>
       <div class="wpn-pick" role="radiogroup" aria-label="Starting weapon">
-        <button class="btn wpn-btn" data-wpn="sword" role="radio"><b>Sword</b><small>Balanced reach and damage</small></button>
-        <button class="btn wpn-btn" data-wpn="dagger" role="radio"><b>Dagger</b><small>Fast stabs, 15% crits</small></button>
-        <button class="btn wpn-btn" data-wpn="wand" role="radio"><b>Wand</b><small>Ranged sparks that slow, uses mana</small></button>
+        <button class="btn wpn-btn" data-wpn="sword" role="radio"><b>Broadsword</b><small>Knight · heavy sweeps & knockback</small></button>
+        <button class="btn wpn-btn" data-wpn="bow" role="radio"><b>Bow</b><small>Rogue · aimed arrows & power shot</small></button>
+        <button class="btn wpn-btn" data-wpn="dagger" role="radio"><b>Dagger</b><small>Rogue · fast stabs, 15% crits</small></button>
+        <button class="btn wpn-btn" data-wpn="wand" role="radio"><b>Wand</b><small>Wizard · ranged sparks, slows</small></button>
       </div>
       <div class="diff-head">Choose your difficulty</div>
       <button class="btn diff-btn" data-diff="easy"><b>Easy</b><small></small></button>
@@ -465,9 +466,10 @@ textarea { width: 100%; box-sizing: border-box; height: 90px; background: var(--
       <div class="coop-sec">
         <div class="sub-head">Starting weapon <span class="sub-note">for a new world or a brand-new co-op knight</span></div>
         <div class="wpn-pick" role="radiogroup" aria-label="Starting weapon">
-          <button class="btn wpn-btn" data-wpn="sword" role="radio"><b>Sword</b><small>Balanced</small></button>
-          <button class="btn wpn-btn" data-wpn="dagger" role="radio"><b>Dagger</b><small>Fast, 15% crits</small></button>
-          <button class="btn wpn-btn" data-wpn="wand" role="radio"><b>Wand</b><small>Ranged, slows</small></button>
+          <button class="btn wpn-btn" data-wpn="sword" role="radio"><b>Broadsword</b><small>Knight · heavy sweep</small></button>
+          <button class="btn wpn-btn" data-wpn="bow" role="radio"><b>Bow</b><small>Rogue · ranged arrows</small></button>
+          <button class="btn wpn-btn" data-wpn="dagger" role="radio"><b>Dagger</b><small>Rogue · fast crits</small></button>
+          <button class="btn wpn-btn" data-wpn="wand" role="radio"><b>Wand</b><small>Wizard · spells</small></button>
         </div>
         <div class="hint">Already have a knight? Talk to Sir Aldric in the village to swap your weapon.</div>
       </div>

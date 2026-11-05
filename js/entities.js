@@ -336,12 +336,14 @@ function attack(item, slot) {
   p.facing = aimPoint().x >= ecx(p) ? 1 : -1;
   const rare = !!slot.rare;
   if (item.wt === 'wand') { castSpell(item, rare); return; }
+  if (item.wt === 'bow') { shootBow(item, rare); return; }
   p.swingDur = Math.min(cd * 0.9, 0.28); p.swingT = p.swingDur;
   const cleave = item.fx === 'cleave';
-  const range = wt.range * (rare ? 1.1 : 1) * (cleave ? 1.8 : 1);
-  // Cleave sweeps all the way around you; normal swings hit in front
-  const hb = cleave ? {x: ecx(p) - range, y: p.y - 26, w: range * 2, h: p.h + 40}
-    : {x: p.facing > 0 ? ecx(p) - 4 : ecx(p) - range + 4, y: p.y - 12, w: range, h: p.h + 18};
+  const baseRange = item.range || wt.range;
+  const range = baseRange * (rare ? 1.1 : 1) * (cleave ? 1.8 : 1);
+  // Cleave sweeps all the way around you; broadsword swings hit with extra height and forward reach
+  const hb = cleave ? {x: ecx(p) - range, y: p.y - 28, w: range * 2, h: p.h + 44}
+    : {x: p.facing > 0 ? ecx(p) - 6 : ecx(p) - range + 6, y: p.y - 18, w: range, h: p.h + 30};
   if (cleave) { effects.push({type:'ring', x:ecx(p), y:ecy(p), r:range, life:0.22, max:0.22, col:'#e0603a'}); }
   if (item.fx === 'dash') { p.dashT = 0.16; p.vx = p.facing * 640; p.vy = Math.min(p.vy, 0); p.dashHit = new Set(); p.dashItem = {item, rare}; }
   let hit = 0;
@@ -378,7 +380,8 @@ function meleeHit(e, item, rare, mult) {
   if (item.fx === 'bloodrage') dmg *= 1 + (1 - p.hp / p.maxHp) * (rare ? 1.4 : 1);
   const crit = Math.random() < (item.fx === 'reap' ? 0.25 : item.fx === 'lifesteal' ? 0.2 : WTYPE[item.wt].crit || 0.05);
   if (crit) dmg *= 2;
-  const kb = WTYPE[item.wt].kb * (item.fx === 'knock' ? (rare ? 2.8 : 2.2) : 1);
+  const baseKb = item.kb || WTYPE[item.wt].kb;
+  const kb = baseKb * (item.fx === 'knock' ? (rare ? 2.8 : 2.2) : 1);
   damageEnemy(e, dmg, {kb: p.facing * kb, crit});
   // a hit spark in the weapon's color (bigger on a critical hit)
   effects.push({type:'impact', x:ecx(e) - p.facing * e.w * 0.2, y:ecy(e), r:crit ? 22 : 14, life:crit ? 0.22 : 0.15, max:crit ? 0.22 : 0.15, col:item.col || '#ffffff'});
@@ -519,6 +522,82 @@ function castSpell(item, rare) {
     }
   }
 }
+// ===== Rogue's Bow & Shooting Mechanism =====
+const POWER_SHOT_COOLDOWN = 3.2;
+function powerShotWait() {
+  const p = player, last = p.powerShotAt;
+  return last == null || last > G.time ? 0 : Math.max(0, POWER_SHOT_COOLDOWN - (G.time - last));
+}
+
+function shootBow(item, rare) {
+  const p = player;
+  p.lastCast = G.time;
+  const sx = ecx(p) + p.facing * 8, sy = p.y + 11;
+  const a = aimAngle();
+  p.facing = Math.cos(a) >= 0 ? 1 : -1;
+  p.aimLocal = p.facing > 0 ? a : Math.PI - a;
+  const crit = Math.random() < (item.crit || WTYPE.bow.crit || 0.15);
+  let dmg = weaponDamage(item, rare);
+  if (item.fx === 'steady' && p.hp >= p.maxHp - 0.5) dmg *= rare ? 1.25 : 1.15;
+  if (crit) dmg *= 2;
+  const speed = 600;
+  addProj({
+    x: sx, y: sy,
+    vx: Math.cos(a) * speed,
+    vy: Math.sin(a) * speed,
+    type: 'arrow',
+    dmg,
+    owner: 'p',
+    life: 2.2,
+    r: 3.5,
+    grav: 110,
+    crit,
+    fx: item.fx || null,
+    rare,
+    col: item.col || '#8b5a2b'
+  });
+  // Bowstring pluck particles and ring pulse
+  addParticles(sx, sy, '#d4c4a8', 5, 80, 0.22, 0);
+  effects.push({type:'ring', x:sx, y:sy, r:11, life:0.12, max:0.12, col:item.col || '#8b5a2b'});
+}
+
+function shootPowerArrow(item, rare) {
+  const p = player;
+  const wait = powerShotWait();
+  if (wait > 0) {
+    if (G.time - (p.powerMsgT || -9) > 0.8) {
+      toast(`Power Shot is recharging (${wait.toFixed(1)}s).`);
+      p.powerMsgT = G.time;
+    }
+    return;
+  }
+  p.powerShotAt = G.time;
+  const sx = ecx(p) + p.facing * 10, sy = p.y + 11;
+  const a = aimAngle();
+  p.facing = Math.cos(a) >= 0 ? 1 : -1;
+  p.aimLocal = p.facing > 0 ? a : Math.PI - a;
+  const dmg = weaponDamage(item, rare) * 2.6;
+  const speed = 760;
+  addProj({
+    x: sx, y: sy,
+    vx: Math.cos(a) * speed,
+    vy: Math.sin(a) * speed,
+    type: 'power_arrow',
+    dmg,
+    owner: 'p',
+    life: 2.0,
+    r: 5,
+    grav: 45,
+    pierce: true,
+    crit: true,
+    fx: item.fx || null,
+    rare,
+    col: '#ffd45a'
+  });
+  shake(3);
+  addParticles(sx, sy, '#ffd45a', 14, 150, 0.38, 0);
+  effects.push({type:'ring', x:sx, y:sy, r:18, life:0.24, max:0.24, col:'#ffd45a'});
+}
 function addProj(o) {
   projectiles.push(Object.assign({life:1, r:3, grav:0, bounces:0, pierce:false, hit:null}, o));
 }
@@ -620,7 +699,8 @@ function spawnAlly(src) {
 
 // ===== Enemy creation =====
 const ENEMY_SPEED = 0.75; // global speed multiplier for regular enemies
-const ENEMY_HEALTH = 1.4; // global health multiplier for regular enemies
+const ENEMY_HEALTH = 1.75; // scaled to match knight broadsword & rogue bow power
+const ENEMY_DAMAGE_SCALE = 1.20; // scaled enemy damage (+20%) to keep combat challenging
 const ATK_TIME = 0.42, ATK_STRIKE = 0.16, CAST_TIME = 0.4; // enemy attack animation timing
 const SLASH_COL = {werewolf:'#ff8a8a', spider:'#c8ff9a', rat:'#ffd0b0', skeleton:'#f0ead6', wraith:'#8ff0ff', drake:'#ffb060', wyvern:'#a0fff0', dark_knight:'#d0a0ff',
   goblin:'#d8e0a0', orc:'#ffb080', ogre:'#e8c890', troll:'#b8e0b0', witch:'#d8a0ff', lich:'#b8ff9a'};
@@ -647,9 +727,9 @@ function makeEnemy(type, x, y, lvl, opt = {}) {
     lvl, elite, ai:d.ai, spd:d.spd * ENEMY_SPEED, seed:Math.random() * 100, t:0, shootT:1 + Math.random() * 2, summonT:6, atkCd:0, leapCd:1, chargeCd:2, chargeT:0,
     wanderT:0, wanderDir:0, dotTick:0.5, flash:0, slowT:0, rootT:0, stunT:0, curseT:0, poisonT:0, burnT:0, swoopT:3 + Math.random() * 2, swoopActive:0};
   const D = diff();
-  e.maxHp = enemyHp(d.hp, lvl) * ENEMY_HEALTH * (elite ? 3 : 1) * D.hp;
+  e.maxHp = Math.max(1, Math.round(enemyHp(d.hp, lvl) * ENEMY_HEALTH * (elite ? 3 : 1) * D.hp));
   e.hp = e.maxHp;
-  e.dmg = enemyDmg(d.dmg, lvl) * (elite ? 1.4 : 1) * D.dmg;
+  e.dmg = Math.max(1, Math.round(enemyDmg(d.dmg, lvl) * ENEMY_DAMAGE_SCALE * (elite ? 1.4 : 1) * D.dmg));
   e.xp = Math.round(enemyXp(lvl, d.xpm) * (elite ? 4 : 1) * D.reward);
   e.coins = Math.round(d.coins * (1 + lvl * 0.25) * (elite ? 4 : 1) * D.reward);
   e.kbRes = d.hp >= 110 ? 0.45 : 1;
@@ -863,8 +943,9 @@ function updateProjectiles(dt) {
         if (pr.hit && pr.hit.has(e)) continue;
         if (pr.x > e.x - pr.r && pr.x < e.x + e.w + pr.r && pr.y > e.y - pr.r && pr.y < e.y + e.h + pr.r) {
           if (pr.burst) { explodeBurst(pr); break; }
-          damageEnemy(e, pr.dmg, {kb:Math.sign(pr.vx) * 60, fx:pr.fx, rare:pr.rare});
+          damageEnemy(e, pr.dmg, {kb:Math.sign(pr.vx) * (pr.type === 'power_arrow' ? 120 : 60), fx:pr.fx, rare:pr.rare, crit:pr.crit});
           if (SPELL_COL[pr.type]) addParticles(pr.x, pr.y, SPELL_COL[pr.type][0], 12, 150, 0.4, 0); // impact burst
+          if (pr.type === 'arrow' || pr.type === 'power_arrow') addParticles(pr.x, pr.y, pr.type === 'power_arrow' ? '#ffd45a' : '#ece5cf', 7, 110, 0.28, 60);
           if (pr.pierce) { (pr.hit || (pr.hit = new Set())).add(e); }
           else { pr.dead = true; break; }
         }
@@ -1231,7 +1312,7 @@ function makeMiniBoss(m) {
   e.name = m.name; e.mini = m.id; e.miniDef = m;
   const D = diff(), bs = bossScaling();
   e.maxHp = Math.max(30, Math.round(enemyHp(d.hp, m.lvl) * ENEMY_HEALTH * 8 * D.hp * bs.hp)); e.hp = e.maxHp;
-  e.dmg = Math.max(1, Math.round(enemyDmg(d.dmg, m.lvl) * 1.6 * D.dmg * bs.dmg));
+  e.dmg = Math.max(1, Math.round(enemyDmg(d.dmg, m.lvl) * ENEMY_DAMAGE_SCALE * 1.6 * D.dmg * bs.dmg));
   e.xp = Math.round(enemyXp(m.lvl, d.xpm) * 10 * D.reward);
   e.coins = Math.round(d.coins * (1 + m.lvl * 0.25) * 10 * D.reward);
   e.kbRes = 0.25; e.skillT = 4;

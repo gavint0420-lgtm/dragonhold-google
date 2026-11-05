@@ -86,7 +86,7 @@ function keyDown(e) {
     case 'map': openMap(); break;
     case 'bossLog': if (!openPanel) showQuestLog(); break;
     case 'home': if (!openPanel) returnHome(); break;
-    case 'burst': if (!openPanel) { const s = hotbar[sel], it = s ? ITEMS[s.id] : null; if (it && it.wt === 'wand' && !player.dead) castBurst(it, !!s.rare); } break;
+    case 'burst': if (!openPanel) { const s = hotbar[sel], it = s ? ITEMS[s.id] : null; if (it && !player.dead) { if (it.wt === 'wand') castBurst(it, !!s.rare); else if (it.wt === 'bow') shootPowerArrow(it, !!s.rare); } } break;
     case 'setHome': if (!openPanel) setHome(); break;
     case 'aim': if (!openPanel) { setAimMode(aimMode === 'smart' ? 'cursor' : 'smart'); toast(aimMode === 'smart' ? 'Smart aim: attacks lock onto the nearest enemy, the pickaxe digs toward your cursor.' : 'Cursor aim: attacks go exactly where you point.', 'blue'); } break;
     default:
@@ -159,9 +159,12 @@ function bindInput() {
     if (e.button === 0) { input.mouseL = true; input.mouseLPressed = true; }
     if (e.button === 2) {
       if (interactMouse()) return;
-      // holding a wand: right click casts its heavy spell (Arcane Burst)
+      // holding a wand or bow: right click casts heavy ability (Arcane Burst / Power Shot)
       const s = hotbar[sel], it = s ? ITEMS[s.id] : null;
-      if (it && it.wt === 'wand' && !player.dead) castBurst(it, !!s.rare); else interactNear();
+      if (it && !player.dead && (it.wt === 'wand' || it.wt === 'bow')) {
+        if (it.wt === 'wand') castBurst(it, !!s.rare);
+        else if (it.wt === 'bow') shootPowerArrow(it, !!s.rare);
+      } else interactNear();
     }
   });
   window.addEventListener('mouseup', e => { if (e.button === 0) input.mouseL = false; });
@@ -216,7 +219,7 @@ function handleUse(dt) {
 // and when you're standing still you turn to face it.
 function trackWandAim() {
   const p = player, it = p.heldItem;
-  if (!it || it.wt !== 'wand' || p.dead || openPanel) return;
+  if (!it || (it.wt !== 'wand' && it.wt !== 'bow') || p.dead || openPanel) return;
   const ap = aimPoint();
   if (Math.abs(p.vx) < 20 && p.dashT <= 0) p.facing = ap.x >= ecx(p) ? 1 : -1;
   const a = Math.atan2(ap.y - (p.y + 10), ap.x - ecx(p));
