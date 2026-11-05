@@ -893,14 +893,14 @@ function lobbyPlayerCount() {
 }
 
 // Boss scaling:
-// - Reduce base health by 20% (0.8x base)
-// - Reduce base damage by 30% (0.7x base)
+// - Lessen base health to 0.55x base (down from 0.8x)
+// - Keep base damage reduction at 0.7x base (30% less damage)
 // - Scales accordingly with player count in lobby:
-//   Health scales +60% per additional player (1p = 0.8x, 2p = 1.28x, 3p = 1.76x)
+//   Health scales +40% per additional player (1p = 0.55x, 2p = 0.77x, 3p = 0.99x)
 //   Damage scales +15% per additional player (1p = 0.7x, 2p = 0.805x, 3p = 0.91x)
 function bossScaling() {
   const p = lobbyPlayerCount();
-  const hpMult = 0.8 * (1 + (p - 1) * 0.60);
+  const hpMult = 0.55 * (1 + (p - 1) * 0.40);
   const dmgMult = 0.7 * (1 + (p - 1) * 0.15);
   return { hp: hpMult, dmg: dmgMult, players: p };
 }

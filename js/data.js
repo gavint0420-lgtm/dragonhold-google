@@ -383,7 +383,7 @@ const SIDE_QUESTS = {
 function xpNeed(l) { return Math.round(40 * Math.pow(l, 1.7)); }
 function playerMaxHp(l) { return Math.round(100 * Math.pow(1.05, l - 1)); }
 function playerMaxMana(l) { return Math.round(50 * Math.pow(1.03, l - 1)); }
-function playerDmgMult(l) { return Math.pow(1.035, l - 1); }
+function playerDmgMult(l) { return 1.4 * Math.pow(1.04, l - 1); }
 function enemyHp(base, l) { return base * Math.pow(1.055, l - 1); }
 function enemyDmg(base, l) { return base * Math.pow(1.045, l - 1); }
 function enemyXp(l, m) { return Math.round(8 * Math.pow(l, 1.3) * m); }
